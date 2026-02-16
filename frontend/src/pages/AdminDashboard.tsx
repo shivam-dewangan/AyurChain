@@ -4,9 +4,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Separator } from "@/components/ui/separator";
 import { authAPI, adminAPI } from "@/api/client";
 import { toast } from "sonner";
-import { Leaf, LogOut, Users, Package, CheckCircle, XCircle, Clock } from "lucide-react";
+import { Leaf, LogOut, Users, Package, CheckCircle, XCircle, Clock, Eye, MapPin, Phone, Mail, FileText, Globe } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import BatchQRCode from "@/components/BatchQRCode";
 
@@ -17,6 +19,8 @@ const AdminDashboard = () => {
   const [pendingFarmers, setPendingFarmers] = useState<any[]>([]);
   const [pendingBatches, setPendingBatches] = useState<any[]>([]);
   const [allPurchases, setAllPurchases] = useState<any[]>([]);
+  const [selectedFarmer, setSelectedFarmer] = useState<any>(null);
+  const [farmerDetailOpen, setFarmerDetailOpen] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -31,7 +35,10 @@ const AdminDashboard = () => {
       }
 
       const result = await adminAPI.getDashboard();
+      console.log('Admin dashboard result:', result);
+      
       if (result.success) {
+        console.log('Pending farmers:', result.data?.pendingFarmers);
         setPendingFarmers(result.data?.pendingFarmers || []);
         setPendingBatches(result.data?.pendingBatches || []);
         setAllPurchases(result.data?.purchases || []);
@@ -44,6 +51,7 @@ const AdminDashboard = () => {
   };
 
   const handleApproveFarmer = async (farmerId: string) => {
+    console.log('handleApproveFarmer called with:', farmerId);
     setApproving(farmerId);
     try {
       const result = await adminAPI.approveFarmer(farmerId);
@@ -88,6 +96,11 @@ const AdminDashboard = () => {
   const handleLogout = async () => {
     await authAPI.logout();
     navigate("/");
+  };
+
+  const handleViewFarmerDetails = (farmer: any) => {
+    setSelectedFarmer(farmer);
+    setFarmerDetailOpen(true);
   };
 
   if (loading) {
@@ -180,19 +193,28 @@ const AdminDashboard = () => {
             ) : (
               <div className="space-y-4">
                 {pendingFarmers.map((farmer) => (
-                  <Card key={farmer.id}>
+                  <Card key={farmer._id || farmer.id}>
                     <CardHeader>
-                      <CardTitle>{farmer.fullName || farmer.user?.full_name}</CardTitle>
-                      <CardDescription>{farmer.farmName || farmer.farm_name}</CardDescription>
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <CardTitle>{farmer.userId?.fullName || farmer.fullName || farmer.user?.fullName || farmer.user?.full_name || 'N/A'}</CardTitle>
+                          <CardDescription>{farmer.farmName || farmer.farm_name}</CardDescription>
+                        </div>
+                        <Button variant="outline" size="sm" onClick={() => handleViewFarmerDetails(farmer)}>
+                          <Eye className="h-4 w-4 mr-1" />
+                          View Details
+                        </Button>
+                      </div>
                     </CardHeader>
                     <CardContent>
                       <div className="space-y-3">
-                        <p className="text-sm">Farm Location: {farmer.farmLocation || farmer.farm_location}</p>
+                        <p className="text-sm">Farmer ID: {farmer._id || farmer.id || 'NO ID!'}</p>
+                        <p className="text-sm">Farm Location: {farmer.farmLocation || farmer.farm_location || 'N/A'}</p>
                         <div className="flex gap-2 pt-4">
-                          <Button onClick={() => handleApproveFarmer(farmer.id)} className="flex-1" disabled={approving === farmer.id}>
+                          <Button onClick={() => handleApproveFarmer(farmer._id || farmer.id)} className="flex-1" disabled={approving === (farmer._id || farmer.id)}>
                             Approve
                           </Button>
-                          <Button variant="destructive" onClick={() => handleRejectFarmer(farmer.id)} className="flex-1" disabled={approving === farmer.id}>
+                          <Button variant="destructive" onClick={() => handleRejectFarmer(farmer._id || farmer.id)} className="flex-1" disabled={approving === (farmer._id || farmer.id)}>
                             Reject
                           </Button>
                         </div>
@@ -217,7 +239,7 @@ const AdminDashboard = () => {
             ) : (
               <div className="grid md:grid-cols-2 gap-6">
                 {pendingBatches.map((batch) => (
-                  <Card key={batch.id}>
+                  <Card key={batch._id || batch.id}>
                     <CardHeader>
                       <CardTitle>{batch.herbName || batch.herb_name}</CardTitle>
                       <CardDescription>Batch: {batch.batchNumber || batch.batch_number}</CardDescription>
@@ -225,7 +247,7 @@ const AdminDashboard = () => {
                     <CardContent>
                       <div className="space-y-3">
                         <p className="text-sm">Quantity: {batch.quantityKg || batch.quantity_kg} kg</p>
-                        <Button onClick={() => handleApproveBatch(batch.id)} className="w-full">
+                        <Button onClick={() => handleApproveBatch(batch._id || batch.id)} className="w-full">
                           Approve for Sale
                         </Button>
                         <BatchQRCode batchNumber={batch.batchNumber || batch.batch_number} herbName={batch.herbName || batch.herb_name} />
@@ -261,6 +283,210 @@ const AdminDashboard = () => {
             )}
           </TabsContent>
         </Tabs>
+
+        {/* Farmer Detail Dialog */}
+        <Dialog open={farmerDetailOpen} onOpenChange={setFarmerDetailOpen}>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Eye className="h-5 w-5" />
+                Farmer Profile Details
+              </DialogTitle>
+              <DialogDescription>
+                Review the farmer's information before approving or rejecting
+              </DialogDescription>
+            </DialogHeader>
+            
+            {selectedFarmer && (
+              <div className="space-y-6">
+                {/* Personal Information */}
+                <div>
+                  <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                    <Users className="h-5 w-5" />
+                    Personal Information
+                  </h3>
+                  <div className="grid grid-cols-2 gap-4 bg-muted/30 p-4 rounded-lg">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Full Name</p>
+                      <p className="font-medium">{selectedFarmer.userId?.fullName || selectedFarmer.fullName || selectedFarmer.user?.fullName || selectedFarmer.user?.full_name || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Phone</p>
+                      <p className="font-medium flex items-center gap-1">
+                        <Phone className="h-3 w-3" />
+                        {selectedFarmer.phoneNumber || selectedFarmer.phone || selectedFarmer.user?.phone || 'N/A'}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Email</p>
+                      <p className="font-medium flex items-center gap-1">
+                        <Mail className="h-3 w-3" />
+                        {selectedFarmer.emailAddress || selectedFarmer.email || selectedFarmer.user?.email || 'N/A'}
+                      </p>
+                    </div>
+                    {(selectedFarmer.farmerAge || selectedFarmer.farmer_age) && (
+                      <div>
+                        <p className="text-sm text-muted-foreground">Age</p>
+                        <p className="font-medium">{selectedFarmer.farmerAge || selectedFarmer.farmer_age} years</p>
+                      </div>
+                    )}
+                    {(selectedFarmer.farmingExperience || selectedFarmer.farming_experience) && (
+                      <div>
+                        <p className="text-sm text-muted-foreground">Farming Experience</p>
+                        <p className="font-medium">{selectedFarmer.farmingExperience || selectedFarmer.farming_experience} years</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Farm Information */}
+                <div>
+                  <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                    <Globe className="h-5 w-5" />
+                    Farm Information
+                  </h3>
+                  <div className="grid grid-cols-2 gap-4 bg-muted/30 p-4 rounded-lg">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Farm Name</p>
+                      <p className="font-medium">{selectedFarmer.farmName || selectedFarmer.farm_name || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Farm Size</p>
+                      <p className="font-medium">{selectedFarmer.farmSize || selectedFarmer.farm_size || 'N/A'} acres</p>
+                    </div>
+                    <div className="col-span-2">
+                      <p className="text-sm text-muted-foreground">Farm Location</p>
+                      <p className="font-medium flex items-start gap-1">
+                        <MapPin className="h-4 w-4 mt-0.5" />
+                        {selectedFarmer.farmLocation || selectedFarmer.farm_location || 'N/A'}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Primary Crop</p>
+                      <p className="font-medium">{selectedFarmer.primaryCrop || selectedFarmer.primary_crop || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Annual Production</p>
+                      <p className="font-medium">{selectedFarmer.annualProduction || selectedFarmer.annual_production || 'N/A'} kg</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Farm Details */}
+                <div>
+                  <h3 className="text-lg font-semibold mb-3">Farm Details</h3>
+                  <div className="grid grid-cols-2 gap-4 bg-muted/30 p-4 rounded-lg">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Soil Type</p>
+                      <p className="font-medium">{(selectedFarmer.soilType || selectedFarmer.soil_type || 'N/A').toUpperCase()}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Water Source</p>
+                      <p className="font-medium">{(selectedFarmer.waterSource || selectedFarmer.water_source || 'N/A').toUpperCase()}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Irrigation Method</p>
+                      <p className="font-medium">{(selectedFarmer.irrigationMethod || selectedFarmer.irrigation_method || 'N/A').toUpperCase()}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Certifications */}
+                {(selectedFarmer.certifications || []).length > 0 && (
+                  <div>
+                    <h3 className="text-lg font-semibold mb-3">Certifications & Herbs</h3>
+                    <div className="flex flex-wrap gap-2 bg-muted/30 p-4 rounded-lg">
+                      {(selectedFarmer.certifications || []).map((cert: string, idx: number) => (
+                        <Badge key={idx} variant="secondary">{cert}</Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Documents */}
+                <div>
+                  <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                    <FileText className="h-5 w-5" />
+                    Documents
+                  </h3>
+                  <div className="space-y-2 bg-muted/30 p-4 rounded-lg">
+                    {(selectedFarmer.landProofUrl || selectedFarmer.land_proof_url) && (
+                      <div className="flex items-center gap-2">
+                        <FileText className="h-4 w-4" />
+                        <a 
+                          href={selectedFarmer.landProofUrl || selectedFarmer.land_proof_url} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="text-primary hover:underline text-sm"
+                        >
+                          Land Proof Document
+                        </a>
+                      </div>
+                    )}
+                    {(selectedFarmer.aadhaarUrl || selectedFarmer.aadhaar_url) && (
+                      <div className="flex items-center gap-2">
+                        <FileText className="h-4 w-4" />
+                        <a 
+                          href={selectedFarmer.aadhaarUrl || selectedFarmer.aadhaar_url} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="text-primary hover:underline text-sm"
+                        >
+                          Aadhaar Document
+                        </a>
+                      </div>
+                    )}
+                    {(selectedFarmer.organicCertUrl || selectedFarmer.organic_cert_url) && (
+                      <div className="flex items-center gap-2">
+                        <FileText className="h-4 w-4" />
+                        <a 
+                          href={selectedFarmer.organicCertUrl || selectedFarmer.organic_cert_url} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="text-primary hover:underline text-sm"
+                        >
+                          Organic Certificate
+                        </a>
+                      </div>
+                    )}
+                    {(!selectedFarmer.landProofUrl && !selectedFarmer.land_proof_url && !selectedFarmer.aadhaarUrl && !selectedFarmer.aadhaar_url && !selectedFarmer.organicCertUrl && !selectedFarmer.organic_cert_url) && (
+                      <p className="text-sm text-muted-foreground">No documents uploaded</p>
+                    )}
+                  </div>
+                </div>
+
+                <Separator />
+
+                {/* Action Buttons */}
+                <div className="flex gap-2">
+                  <Button 
+                    onClick={() => {
+                      handleApproveFarmer(selectedFarmer._id || selectedFarmer.id);
+                      setFarmerDetailOpen(false);
+                    }} 
+                    className="flex-1"
+                    disabled={approving === (selectedFarmer._id || selectedFarmer.id)}
+                  >
+                    <CheckCircle className="h-4 w-4 mr-2" />
+                    Approve Farmer
+                  </Button>
+                  <Button 
+                    variant="destructive" 
+                    onClick={() => {
+                      handleRejectFarmer(selectedFarmer._id || selectedFarmer.id);
+                      setFarmerDetailOpen(false);
+                    }} 
+                    className="flex-1"
+                    disabled={approving === (selectedFarmer._id || selectedFarmer.id)}
+                  >
+                    <XCircle className="h-4 w-4 mr-2" />
+                    Reject Farmer
+                  </Button>
+                </div>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );

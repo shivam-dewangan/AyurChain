@@ -140,6 +140,14 @@ router.get('/farmers', authenticate, requireRole('admin'), async (req, res) => {
 // @access  Private (Admin only)
 router.patch('/farmers/:id/approve', authenticate, requireRole('admin'), async (req, res) => {
   try {
+    // Validate farmer ID
+    if (!req.params.id || req.params.id === 'undefined' || req.params.id === 'null') {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid farmer ID'
+      });
+    }
+
     const farmer = await FarmerDetail.findById(req.params.id);
 
     if (!farmer) {
@@ -183,6 +191,14 @@ router.patch('/farmers/:id/approve', authenticate, requireRole('admin'), async (
 // @access  Private (Admin only)
 router.patch('/farmers/:id/reject', authenticate, requireRole('admin'), async (req, res) => {
   try {
+    // Validate farmer ID
+    if (!req.params.id || req.params.id === 'undefined' || req.params.id === 'null') {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid farmer ID'
+      });
+    }
+
     const { reason } = req.body;
 
     const farmer = await FarmerDetail.findById(req.params.id);
@@ -249,6 +265,14 @@ router.get('/batches/pending', authenticate, requireRole('admin'), async (req, r
 // @access  Private (Admin only)
 router.patch('/batches/:id/approve', authenticate, requireRole('admin'), async (req, res) => {
   try {
+    // Validate batch ID
+    if (!req.params.id || req.params.id === 'undefined' || req.params.id === 'null') {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid batch ID'
+      });
+    }
+
     const batch = await Batch.findById(req.params.id);
 
     if (!batch) {
@@ -258,15 +282,26 @@ router.patch('/batches/:id/approve', authenticate, requireRole('admin'), async (
       });
     }
 
-    batch.status = 'ready_for_sale';
+    // Update to approved_by_admin status (sequential flow step 2)
+    batch.status = 'approved_by_admin';
     batch.qrCodeData = batch.batchNumber;
     await batch.save();
+
+    // Record status change
+    const BatchChange = require('../models/BatchChange');
+    await BatchChange.create({
+      batchId: batch._id,
+      fieldName: 'status',
+      oldValue: 'pending_approval',
+      newValue: 'approved_by_admin',
+      changedBy: req.user.id
+    });
 
     // Create notification for farmer
     await Notification.create({
       userId: batch.farmerId,
-      title: 'Batch Approved!',
-      message: `Your batch ${batch.batchNumber} (${batch.herbName}) has been approved for sale!`,
+      title: 'Batch Approved by Admin!',
+      message: `Your batch ${batch.batchNumber} (${batch.herbName}) has been approved by admin. You can now proceed with harvesting and processing.`,
       type: 'batch_approved',
       relatedId: batch._id,
       relatedModel: 'Batch'
@@ -291,6 +326,14 @@ router.patch('/batches/:id/approve', authenticate, requireRole('admin'), async (
 // @access  Private (Admin only)
 router.patch('/batches/:id/reject', authenticate, requireRole('admin'), async (req, res) => {
   try {
+    // Validate batch ID
+    if (!req.params.id || req.params.id === 'undefined' || req.params.id === 'null') {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid batch ID'
+      });
+    }
+
     const { reason } = req.body;
 
     const batch = await Batch.findById(req.params.id);

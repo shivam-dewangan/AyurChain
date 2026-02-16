@@ -4,7 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { authAPI } from '@/api/client';
+import { authAPI, batchesAPI, profilesAPI } from '@/api/client';
 import { toast } from 'sonner';
 import { Search, User, MapPin, FileText, Package, Calendar, Phone, Mail } from 'lucide-react';
 import BatchTimeline from '@/components/BatchTimeline';
@@ -23,45 +23,27 @@ const BatchSearch = () => {
 
     setLoading(true);
     try {
-      // Search for batch
-      const { data: batch, error: batchError } = await supabase
-        .from('batches')
-        .select('*')
-        .eq('batch_number', searchId.trim())
-        .single();
-
-      if (batchError || !batch) {
+      // Search for batch using MongoDB API (by batch number)
+      const result = await batchesAPI.getByBatchNumber(searchId.trim());
+      
+      if (!result.success || !result.data) {
         toast.error('Batch not found');
         setBatchData(null);
         setFarmerData(null);
         return;
       }
 
+      const batch = result.data;
       setBatchData(batch);
 
       // Get farmer profile
-      const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', batch.farmer_id)
-        .single();
-
-      console.log('Profile data:', profile);
-      console.log('Profile error:', profileError);
-
-      // Get farmer details
-      const { data: farmerDetails, error: farmerError } = await supabase
-        .from('farmer_details')
-        .select('*')
-        .eq('user_id', batch.farmer_id)
-        .single();
-
-      console.log('Farmer details:', farmerDetails);
-      console.log('Farmer error:', farmerError);
-
-      // Always show profile data if it exists, even without farmer_details
-      if (profile) {
-        setFarmerData({ ...profile, ...(farmerDetails || {}) });
+      if (batch.farmerId) {
+        const farmerResult = await profilesAPI.getFarmerProfile(batch.farmerId);
+        if (farmerResult.success && farmerResult.data) {
+          setFarmerData(farmerResult.data);
+        } else {
+          setFarmerData(null);
+        }
       } else {
         setFarmerData(null);
       }
@@ -124,54 +106,54 @@ const BatchSearch = () => {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <p className="text-sm text-muted-foreground">Batch Number</p>
-                      <p className="font-medium">{batchData.batch_number}</p>
+                      <p className="font-medium">{batchData.batchNumber || batchData.batch_number}</p>
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">Herb Name</p>
-                      <p className="font-medium">{batchData.herb_name}</p>
+                      <p className="font-medium">{batchData.herbName || batchData.herb_name}</p>
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">Status</p>
                       <Badge variant="outline">
-                        {batchData.status.replace(/_/g, ' ').toUpperCase()}
+                        {(batchData.status || '').replace(/_/g, ' ').toUpperCase()}
                       </Badge>
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">Quantity</p>
-                      <p className="font-medium">{batchData.quantity_kg} kg</p>
+                      <p className="font-medium">{batchData.quantityKg || batchData.quantity_kg} kg</p>
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">Harvest Date</p>
-                      <p className="font-medium">{new Date(batchData.harvest_date).toLocaleDateString()}</p>
+                      <p className="font-medium">{new Date(batchData.harvestDate || batchData.harvest_date).toLocaleDateString()}</p>
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">Price per kg</p>
-                      <p className="font-medium">₹{batchData.price_per_kg || 'N/A'}</p>
+                      <p className="font-medium">₹{batchData.pricePerKg || batchData.price_per_kg || 'N/A'}</p>
                     </div>
-                    {batchData.moisture_level && (
+                    {(batchData.moistureLevel || batchData.moisture_level) && (
                       <div>
                         <p className="text-sm text-muted-foreground">Moisture Level</p>
-                        <p className="font-medium">{batchData.moisture_level}%</p>
+                        <p className="font-medium">{batchData.moistureLevel || batchData.moisture_level}%</p>
                       </div>
                     )}
                     <div>
                       <p className="text-sm text-muted-foreground">Created</p>
-                      <p className="font-medium">{new Date(batchData.created_at).toLocaleDateString()}</p>
+                      <p className="font-medium">{new Date(batchData.createdAt || batchData.created_at).toLocaleDateString()}</p>
                     </div>
                   </div>
                   
-                  {batchData.farming_conditions && (
+                  {(batchData.farmingConditions || batchData.farming_conditions) && (
                     <div>
                       <p className="text-sm text-muted-foreground mb-2">Farming Conditions</p>
-                      <p className="text-sm bg-muted p-3 rounded">{batchData.farming_conditions}</p>
+                      <p className="text-sm bg-muted p-3 rounded">{batchData.farmingConditions || batchData.farming_conditions}</p>
                     </div>
                   )}
 
-                  {batchData.purity_report_url && (
+                  {(batchData.purityReportUrl || batchData.purity_report_url) && (
                     <div>
                       <p className="text-sm text-muted-foreground mb-2">Purity Report</p>
                       <a 
-                        href={batchData.purity_report_url} 
+                        href={batchData.purityReportUrl || batchData.purity_report_url} 
                         target="_blank" 
                         rel="noopener noreferrer"
                         className="text-primary hover:underline text-sm"
@@ -181,11 +163,11 @@ const BatchSearch = () => {
                     </div>
                   )}
 
-                  {batchData.images && batchData.images.length > 0 && (
+                  {(batchData.images || []).length > 0 && (
                     <div>
                       <p className="text-sm text-muted-foreground mb-2">Product Images</p>
                       <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                        {batchData.images.map((img: string, idx: number) => (
+                        {(batchData.images || []).map((img: string, idx: number) => (
                           <img
                             key={idx}
                             src={img}
@@ -217,14 +199,14 @@ const BatchSearch = () => {
                       </p>
                       <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-left">
                         <p className="text-sm text-red-800">
-                          <strong>Farmer ID:</strong> {batchData.farmer_id}
+                          <strong>Farmer ID:</strong> {batchData.farmerId || batchData.farmer_id}
                         </p>
                         <p className="text-xs text-red-600 mt-1">
                           This could mean the farmer account was deleted or there was a data issue.
                         </p>
                       </div>
                     </div>
-                  ) : !farmerData.farm_name ? (
+                  ) : !farmerData.farmName ? (
                     <div className="space-y-4">
                       <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
                         <p className="text-sm font-medium text-yellow-800 mb-2">⚠️ Incomplete Profile</p>
@@ -236,19 +218,19 @@ const BatchSearch = () => {
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                           <p className="text-sm text-muted-foreground">Full Name</p>
-                          <p className="font-medium">{farmerData.full_name || 'N/A'}</p>
+                          <p className="font-medium">{farmerData.userId?.fullName || farmerData.full_name || 'N/A'}</p>
                         </div>
                         <div>
                           <p className="text-sm text-muted-foreground">Phone</p>
-                          <p className="font-medium">{farmerData.phone || 'N/A'}</p>
+                          <p className="font-medium">{farmerData.phoneNumber || farmerData.phone || farmerData.phone_number || 'N/A'}</p>
                         </div>
                         <div>
                           <p className="text-sm text-muted-foreground">Role</p>
-                          <p className="font-medium">{farmerData.role?.toUpperCase() || 'N/A'}</p>
+                          <p className="font-medium">FARMER</p>
                         </div>
                         <div>
                           <p className="text-sm text-muted-foreground">Registered</p>
-                          <p className="font-medium">{new Date(farmerData.created_at).toLocaleDateString()}</p>
+                          <p className="font-medium">{farmerData.createdAt ? new Date(farmerData.createdAt).toLocaleDateString() : 'N/A'}</p>
                         </div>
                       </div>
                       
@@ -263,81 +245,81 @@ const BatchSearch = () => {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
                         <p className="text-sm text-muted-foreground">Full Name</p>
-                        <p className="font-medium">{farmerData.full_name}</p>
+                        <p className="font-medium">{farmerData.userId?.fullName || farmerData.full_name || 'N/A'}</p>
                       </div>
                       <div>
                         <p className="text-sm text-muted-foreground">Phone</p>
                         <p className="font-medium flex items-center gap-1">
                           <Phone className="h-3 w-3" />
-                          {farmerData.phone || farmerData.phone_number || 'N/A'}
+                          {farmerData.phoneNumber || farmerData.phone || farmerData.phone_number || 'N/A'}
                         </p>
                       </div>
                       <div>
                         <p className="text-sm text-muted-foreground">Email</p>
                         <p className="font-medium flex items-center gap-1">
                           <Mail className="h-3 w-3" />
-                          {farmerData.email_address || 'N/A'}
+                          {farmerData.emailAddress || farmerData.email_address || 'N/A'}
                         </p>
                       </div>
                       <div>
                         <p className="text-sm text-muted-foreground">Farm Name</p>
-                        <p className="font-medium">{farmerData.farm_name}</p>
+                        <p className="font-medium">{farmerData.farmName || farmerData.farm_name}</p>
                       </div>
                       <div>
                         <p className="text-sm text-muted-foreground">Farm Size</p>
-                        <p className="font-medium">{farmerData.farm_size || 'N/A'} acres</p>
+                        <p className="font-medium">{farmerData.farmSize || farmerData.farm_size || 'N/A'} acres</p>
                       </div>
                       <div>
                         <p className="text-sm text-muted-foreground">Approval Status</p>
-                        <Badge variant={farmerData.approval_status === 'approved' ? 'default' : 'outline'}>
-                          {farmerData.approval_status?.toUpperCase()}
+                        <Badge variant={(farmerData.approvalStatus || farmerData.approval_status) === 'approved' ? 'default' : 'outline'}>
+                          {(farmerData.approvalStatus || farmerData.approval_status)?.toUpperCase()}
                         </Badge>
                       </div>
-                      {farmerData.farmer_age && (
+                      {(farmerData.farmerAge || farmerData.farmer_age) && (
                         <div>
                           <p className="text-sm text-muted-foreground">Age</p>
-                          <p className="font-medium">{farmerData.farmer_age} years</p>
+                          <p className="font-medium">{farmerData.farmerAge || farmerData.farmer_age} years</p>
                         </div>
                       )}
-                      {farmerData.farming_experience && (
+                      {(farmerData.farmingExperience || farmerData.farming_experience) && (
                         <div>
                           <p className="text-sm text-muted-foreground">Farming Experience</p>
-                          <p className="font-medium">{farmerData.farming_experience} years</p>
+                          <p className="font-medium">{farmerData.farmingExperience || farmerData.farming_experience} years</p>
                         </div>
                       )}
-                      {farmerData.soil_type && (
+                      {(farmerData.soilType || farmerData.soil_type) && (
                         <div>
                           <p className="text-sm text-muted-foreground">Soil Type</p>
-                          <p className="font-medium">{farmerData.soil_type.replace('_', ' ').toUpperCase()}</p>
+                          <p className="font-medium">{(farmerData.soilType || farmerData.soil_type).replace('_', ' ').toUpperCase()}</p>
                         </div>
                       )}
-                      {farmerData.water_source && (
+                      {(farmerData.waterSource || farmerData.water_source) && (
                         <div>
                           <p className="text-sm text-muted-foreground">Water Source</p>
-                          <p className="font-medium">{farmerData.water_source.replace('_', ' ').toUpperCase()}</p>
+                          <p className="font-medium">{(farmerData.waterSource || farmerData.water_source).replace('_', ' ').toUpperCase()}</p>
                         </div>
                       )}
-                      {farmerData.irrigation_method && (
+                      {(farmerData.irrigationMethod || farmerData.irrigation_method) && (
                         <div>
                           <p className="text-sm text-muted-foreground">Irrigation Method</p>
-                          <p className="font-medium">{farmerData.irrigation_method.replace('_', ' ').toUpperCase()}</p>
+                          <p className="font-medium">{(farmerData.irrigationMethod || farmerData.irrigation_method).replace('_', ' ').toUpperCase()}</p>
                         </div>
                       )}
-                      {farmerData.primary_crop && (
+                      {(farmerData.primaryCrop || farmerData.primary_crop) && (
                         <div>
                           <p className="text-sm text-muted-foreground">Primary Crop</p>
-                          <p className="font-medium">{farmerData.primary_crop}</p>
+                          <p className="font-medium">{farmerData.primaryCrop || farmerData.primary_crop}</p>
                         </div>
                       )}
-                      {farmerData.annual_production && (
+                      {(farmerData.annualProduction || farmerData.annual_production) && (
                         <div>
                           <p className="text-sm text-muted-foreground">Annual Production</p>
-                          <p className="font-medium">{farmerData.annual_production} kg</p>
+                          <p className="font-medium">{farmerData.annualProduction || farmerData.annual_production} kg</p>
                         </div>
                       )}
                       <div>
                         <p className="text-sm text-muted-foreground">Registered</p>
-                        <p className="font-medium">{new Date(farmerData.created_at).toLocaleDateString()}</p>
+                        <p className="font-medium">{farmerData.createdAt ? new Date(farmerData.createdAt).toLocaleDateString() : 'N/A'}</p>
                       </div>
                     </div>
 
@@ -347,60 +329,60 @@ const BatchSearch = () => {
                       <p className="text-sm text-muted-foreground mb-2">Farm Location</p>
                       <p className="text-sm bg-muted p-3 rounded flex items-start gap-2">
                         <MapPin className="h-4 w-4 mt-0.5 flex-shrink-0" />
-                        {farmerData.farm_location}
+                        {farmerData.farmLocation || farmerData.farm_location}
                       </p>
-                      {(farmerData.gps_latitude && farmerData.gps_longitude) && (
+                      {(farmerData.gpsLatitude || farmerData.gps_latitude) && (farmerData.gpsLongitude || farmerData.gps_longitude) && (
                         <p className="text-xs text-muted-foreground mt-2">
-                          GPS: {farmerData.gps_latitude}°N, {farmerData.gps_longitude}°E
+                          GPS: {farmerData.gpsLatitude || farmerData.gps_latitude}°N, {farmerData.gpsLongitude || farmerData.gps_longitude}°E
                         </p>
                       )}
                     </div>
 
-                    {farmerData.complete_address && (
+                    {(farmerData.completeAddress || farmerData.complete_address) && (
                       <div>
                         <p className="text-sm text-muted-foreground mb-2">Complete Address</p>
                         <p className="text-sm bg-muted p-3 rounded">
-                          {farmerData.complete_address}
+                          {farmerData.completeAddress || farmerData.complete_address}
                         </p>
                       </div>
                     )}
 
-                    {farmerData.crop_rotation && (
+                    {(farmerData.cropRotation || farmerData.crop_rotation) && (
                       <div>
                         <p className="text-sm text-muted-foreground mb-2">Crop Rotation Pattern</p>
                         <p className="text-sm bg-muted p-3 rounded">
-                          {farmerData.crop_rotation}
+                          {farmerData.cropRotation || farmerData.crop_rotation}
                         </p>
                       </div>
                     )}
 
-                    {farmerData.certifications && farmerData.certifications.length > 0 && (
+                    {(farmerData.certifications || []).length > 0 && (
                       <div>
                         <p className="text-sm text-muted-foreground mb-2">Certifications</p>
                         <div className="flex flex-wrap gap-2">
-                          {farmerData.certifications.map((cert: string, idx: number) => (
+                          {(farmerData.certifications || []).map((cert: string, idx: number) => (
                             <Badge key={idx} variant="secondary">{cert}</Badge>
                           ))}
                         </div>
                       </div>
                     )}
 
-                    {farmerData.farming_practices && farmerData.farming_practices.length > 0 && (
+                    {(farmerData.farmingPractices || farmerData.farming_practices || []).length > 0 && (
                       <div>
                         <p className="text-sm text-muted-foreground mb-2">Farming Practices</p>
                         <div className="flex flex-wrap gap-2">
-                          {farmerData.farming_practices.map((practice: string, idx: number) => (
+                          {(farmerData.farmingPractices || farmerData.farming_practices || []).map((practice: string, idx: number) => (
                             <Badge key={idx} variant="outline">{practice}</Badge>
                           ))}
                         </div>
                       </div>
                     )}
 
-                    {farmerData.processing_capabilities && farmerData.processing_capabilities.length > 0 && (
+                    {(farmerData.processingCapabilities || farmerData.processing_capabilities || []).length > 0 && (
                       <div>
                         <p className="text-sm text-muted-foreground mb-2">Processing Capabilities</p>
                         <div className="flex flex-wrap gap-2">
-                          {farmerData.processing_capabilities.map((capability: string, idx: number) => (
+                          {(farmerData.processingCapabilities || farmerData.processing_capabilities || []).map((capability: string, idx: number) => (
                             <Badge key={idx} variant="secondary">{capability}</Badge>
                           ))}
                         </div>
@@ -412,11 +394,11 @@ const BatchSearch = () => {
                     <div>
                       <p className="text-sm text-muted-foreground mb-3">Documents</p>
                       <div className="space-y-2">
-                        {farmerData.land_proof_url && (
+                        {(farmerData.landProofUrl || farmerData.land_proof_url) && (
                           <div className="flex items-center gap-2">
                             <FileText className="h-4 w-4" />
                             <a 
-                              href={farmerData.land_proof_url} 
+                              href={farmerData.landProofUrl || farmerData.land_proof_url} 
                               target="_blank" 
                               rel="noopener noreferrer"
                               className="text-primary hover:underline text-sm"
@@ -425,11 +407,11 @@ const BatchSearch = () => {
                             </a>
                           </div>
                         )}
-                        {farmerData.aadhaar_url && (
+                        {(farmerData.aadhaarUrl || farmerData.aadhaar_url) && (
                           <div className="flex items-center gap-2">
                             <FileText className="h-4 w-4" />
                             <a 
-                              href={farmerData.aadhaar_url} 
+                              href={farmerData.aadhaarUrl || farmerData.aadhaar_url} 
                               target="_blank" 
                               rel="noopener noreferrer"
                               className="text-primary hover:underline text-sm"
@@ -438,11 +420,11 @@ const BatchSearch = () => {
                             </a>
                           </div>
                         )}
-                        {farmerData.organic_cert_url && (
+                        {(farmerData.organicCertUrl || farmerData.organic_cert_url) && (
                           <div className="flex items-center gap-2">
                             <FileText className="h-4 w-4" />
                             <a 
-                              href={farmerData.organic_cert_url} 
+                              href={farmerData.organicCertUrl || farmerData.organic_cert_url} 
                               target="_blank" 
                               rel="noopener noreferrer"
                               className="text-primary hover:underline text-sm"
@@ -451,16 +433,16 @@ const BatchSearch = () => {
                             </a>
                           </div>
                         )}
-                        {!farmerData.land_proof_url && !farmerData.aadhaar_url && !farmerData.organic_cert_url && (
+                        {!farmerData.landProofUrl && !farmerData.land_proof_url && !farmerData.aadhaarUrl && !farmerData.aadhaar_url && !farmerData.organicCertUrl && !farmerData.organic_cert_url && (
                           <p className="text-sm text-muted-foreground">No documents uploaded</p>
                         )}
                       </div>
                       
-                      {farmerData.farm_photos_urls && farmerData.farm_photos_urls.length > 0 && (
+                      {(farmerData.farmPhotosUrls || farmerData.farm_photos_urls || []).length > 0 && (
                         <div>
                           <p className="text-sm text-muted-foreground mb-2">Farm Photos</p>
                           <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                            {farmerData.farm_photos_urls.map((photo: string, idx: number) => (
+                            {(farmerData.farmPhotosUrls || farmerData.farm_photos_urls || []).map((photo: string, idx: number) => (
                               <img
                                 key={idx}
                                 src={photo}
@@ -480,7 +462,7 @@ const BatchSearch = () => {
 
             {/* Timeline Sidebar */}
             <div className="lg:col-span-1">
-              <BatchTimeline batchId={batchData.id} />
+              <BatchTimeline batchId={batchData._id || batchData.id} />
             </div>
           </div>
         )}

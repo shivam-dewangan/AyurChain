@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { authAPI } from '@/api/client';
-import { CheckCircle, Clock, Package, AlertCircle } from 'lucide-react';
+import { batchesAPI } from '@/api/client';
+import { CheckCircle, Clock, Package, AlertCircle, Scissors, Sparkles, Sun, User, ArrowRight } from 'lucide-react';
 
 interface BatchTimelineProps {
   batchId: string;
@@ -15,49 +15,26 @@ const BatchTimeline = ({ batchId }: BatchTimelineProps) => {
   useEffect(() => {
     if (batchId) {
       fetchTimeline();
-      
-      // Set up real-time subscription for batch changes
-      const subscription = supabase
-        .channel(`batch_changes_${batchId}`)
-        .on('postgres_changes', 
-          { 
-            event: 'INSERT', 
-            schema: 'public', 
-            table: 'batch_changes',
-            filter: `batch_id=eq.${batchId}`
-          },
-          (payload) => {
-            console.log('New batch change received:', payload);
-            fetchTimeline(); // Refresh timeline when new change is added
-          }
-        )
-        .subscribe();
-
-      return () => {
-        subscription.unsubscribe();
-      };
     }
   }, [batchId]);
 
   const fetchTimeline = async () => {
     try {
-      console.log('Fetching timeline for batch:', batchId);
-      
-      const { data, error } = await supabase
-        .from('batch_changes')
-        .select('*')
-        .eq('batch_id', batchId)
-        .eq('field_name', 'status')
-        .order('changed_at', { ascending: true });
-
-      console.log('Timeline data:', data);
-      console.log('Timeline error:', error);
-
-      if (error) {
-        console.error('Timeline fetch error:', error);
+      const result = await batchesAPI.getTimeline(batchId);
+      if (!result.success) {
         setTimeline([]);
       } else {
-        setTimeline(data || []);
+        const normalizedTimeline = (result.data || [])
+          .filter((item: any) => item.fieldName === 'status')
+          .map((item: any) => ({
+            id: item._id || item.id,
+            old_value: item.oldValue,
+            new_value: item.newValue,
+            changed_at: item.changedAt || item.createdAt,
+            changedBy: item.changedBy,
+            role: item.changedBy?.role
+          }));
+        setTimeline(normalizedTimeline);
       }
     } catch (error) {
       console.error('Failed to load timeline:', error);
@@ -70,33 +47,55 @@ const BatchTimeline = ({ batchId }: BatchTimelineProps) => {
   const getStatusIcon = (status: string) => {
     switch(status) {
       case 'pending_approval': return Clock;
+      case 'approved_by_admin': return User;
       case 'approved': return CheckCircle;
-      case 'in_process': return Clock;
-      case 'quality_check': return AlertCircle;
-      case 'packaging': return Package;
+      case 'harvested': return Package;
+      case 'processing': return Scissors;
+      case 'cleaning': return Sparkles;
+      case 'drying': return Sun;
       case 'ready_for_sale': return Package;
-      case 'shipped': return CheckCircle;
-      case 'delivered': return CheckCircle;
       case 'sold': return CheckCircle;
-      case 'unavailable': return AlertCircle;
+      case 'packaging': return Package;
+      case 'shipped': return Package;
+      case 'delivered': return CheckCircle;
       default: return Clock;
     }
   };
 
   const getStatusColor = (status: string) => {
     switch(status) {
-      case 'pending_approval': return 'text-yellow-600';
-      case 'approved': return 'text-green-600';
-      case 'in_process': return 'text-blue-600';
-      case 'quality_check': return 'text-orange-600';
-      case 'packaging': return 'text-purple-600';
-      case 'ready_for_sale': return 'text-green-600';
-      case 'shipped': return 'text-blue-600';
-      case 'delivered': return 'text-green-600';
-      case 'sold': return 'text-gray-600';
-      case 'unavailable': return 'text-red-600';
-      default: return 'text-gray-600';
+      case 'pending_approval': return 'text-yellow-600 border-yellow-200';
+      case 'approved_by_admin': return 'text-blue-600 border-blue-200';
+      case 'approved': return 'text-green-600 border-green-200';
+      case 'harvested': return 'text-blue-600 border-blue-200';
+      case 'processing': return 'text-purple-600 border-purple-200';
+      case 'cleaning': return 'text-cyan-600 border-cyan-200';
+      case 'drying': return 'text-orange-600 border-orange-200';
+      case 'ready_for_sale': return 'text-green-600 border-green-200';
+      case 'sold': return 'text-gray-600 border-gray-200';
+      case 'packaging': return 'text-indigo-600 border-indigo-200';
+      case 'shipped': return 'text-blue-600 border-blue-200';
+      case 'delivered': return 'text-green-600 border-green-200';
+      default: return 'text-gray-600 border-gray-200';
     }
+  };
+
+  const getStatusLabel = (status: string) => {
+    const labels: Record<string, string> = {
+      pending_approval: 'Batch Created',
+      approved_by_admin: 'Approved by Admin',
+      approved: 'Approved',
+      harvested: 'Harvested',
+      processing: 'Processing',
+      cleaning: 'Cleaning',
+      drying: 'Drying',
+      ready_for_sale: 'Ready for Sale',
+      sold: 'Sold',
+      packaging: 'Packaging',
+      shipped: 'Shipped',
+      delivered: 'Delivered'
+    };
+    return labels[status] || status.replace(/_/g, ' ');
   };
 
   if (loading) {
@@ -119,7 +118,7 @@ const BatchTimeline = ({ batchId }: BatchTimelineProps) => {
     );
   }
 
-  // Filter unique status changes (remove duplicates)
+  // Filter unique status changes
   const uniqueTimeline = timeline.reduce((acc: any[], current) => {
     const existing = acc.find(item => 
       item.new_value === current.new_value && 
@@ -132,10 +131,10 @@ const BatchTimeline = ({ batchId }: BatchTimelineProps) => {
   }, []);
 
   return (
-    <Card className="w-full max-w-md mx-auto">
+    <Card className="w-full">
       <CardHeader className="pb-3">
         <div className="flex justify-between items-center">
-          <CardTitle className="text-base">Status Timeline</CardTitle>
+          <CardTitle className="text-base">Complete Status Timeline</CardTitle>
           <button 
             onClick={fetchTimeline}
             className="text-xs text-primary hover:underline"
@@ -144,7 +143,7 @@ const BatchTimeline = ({ batchId }: BatchTimelineProps) => {
           </button>
         </div>
         <p className="text-xs text-muted-foreground">
-          {uniqueTimeline.length} status changes
+          {uniqueTimeline.length} status changes recorded
         </p>
       </CardHeader>
       <CardContent className="pt-0">
@@ -153,33 +152,61 @@ const BatchTimeline = ({ batchId }: BatchTimelineProps) => {
             No status changes recorded yet
           </p>
         ) : (
-          <div className="max-h-64 overflow-y-auto pr-2 space-y-3">
+          <div className="max-h-96 overflow-y-auto pr-2 space-y-4">
             {uniqueTimeline.map((change, index) => {
               const Icon = getStatusIcon(change.new_value);
               const isLast = index === uniqueTimeline.length - 1;
+              const colorClass = getStatusColor(change.new_value);
               
               return (
-                <div key={change.id || index} className="relative flex items-start gap-3">
+                <div key={change._id || change.id || `timeline-${index}`} className="relative">
                   {!isLast && (
-                    <div className="absolute left-3 top-6 w-0.5 h-8 bg-border" />
+                    <div className="absolute left-3 top-8 w-0.5 h-10 bg-border" />
                   )}
                   
-                  <div className={`flex-shrink-0 w-6 h-6 rounded-full border bg-background flex items-center justify-center ${getStatusColor(change.new_value)}`}>
-                    <Icon className="h-3 w-3" />
-                  </div>
-                  
-                  <div className="flex-1 min-w-0">
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-1">
-                      <p className="font-medium text-sm">
-                        {change.new_value?.replace(/_/g, ' ').toUpperCase()}
-                      </p>
-                      <Badge variant="outline" className="text-xs w-fit">
-                        Updated
-                      </Badge>
+                  <div className="flex items-start gap-3">
+                    <div className={`flex-shrink-0 w-7 h-7 rounded-full border-2 bg-background flex items-center justify-center ${colorClass}`}>
+                      <Icon className="h-3.5 w-3.5" />
                     </div>
-                    <p className="text-xs text-muted-foreground">
-                      {new Date(change.changed_at).toLocaleString()}
-                    </p>
+                    
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-1">
+                        <p className="font-semibold text-sm">
+                          {getStatusLabel(change.new_value)}
+                        </p>
+                        <Badge variant="outline" className="text-xs w-fit">
+                          Step {index + 1}
+                        </Badge>
+                      </div>
+                      
+                      {/* Status transition */}
+                      {change.old_value && (
+                        <div className="flex items-center gap-1 text-xs text-muted-foreground mb-2">
+                          <span>{getStatusLabel(change.old_value)}</span>
+                          <ArrowRight className="h-3 w-3" />
+                          <span className="font-medium">{getStatusLabel(change.new_value)}</span>
+                        </div>
+                      )}
+                      
+                      {/* Timestamp */}
+                      <div className="text-xs text-muted-foreground">
+                        <p>📅 {new Date(change.changed_at).toLocaleDateString()}</p>
+                        <p>🕐 {new Date(change.changed_at).toLocaleTimeString()}</p>
+                      </div>
+                      
+                      {/* Who made the change */}
+                      {change.changedBy && (
+                        <div className="mt-2 text-xs">
+                          {change.role === 'admin' ? (
+                            <Badge variant="secondary" className="text-xs">👨‍💼 Updated by Admin</Badge>
+                          ) : change.role === 'farmer' ? (
+                            <Badge variant="secondary" className="text-xs">👨‍🌾 Updated by Farmer</Badge>
+                          ) : (
+                            <Badge variant="secondary" className="text-xs">👤 Updated by {change.changedBy.fullName || 'User'}</Badge>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               );

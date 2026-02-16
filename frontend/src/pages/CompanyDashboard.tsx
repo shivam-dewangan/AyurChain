@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { authAPI, batchesAPI, purchasesAPI } from "@/api/client";
+import { authAPI, batchesAPI, purchasesAPI, profilesAPI } from "@/api/client";
 import { toast } from "sonner";
 import { Leaf, LogOut, ShoppingCart, Package, Receipt, History, Eye } from "lucide-react";
 import BatchTimeline from "@/components/BatchTimeline";
@@ -33,82 +33,91 @@ const CompanyDashboard = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [filters, setFilters] = useState<FilterState>({});
 
+  const normalizeBatch = (batch: any) => ({
+    id: batch._id || batch.id,
+    farmer_id: typeof batch.farmerId === "object" ? batch.farmerId?._id : batch.farmerId,
+    herb_name: batch.herbName,
+    batch_number: batch.batchNumber,
+    quantity_kg: batch.quantityKg,
+    available_quantity_kg:
+      batch.availableQuantityKg !== null && batch.availableQuantityKg !== undefined
+        ? batch.availableQuantityKg
+        : batch.quantityKg,
+    available_quantity:
+      batch.availableQuantityKg !== null && batch.availableQuantityKg !== undefined
+        ? batch.availableQuantityKg
+        : batch.quantityKg,
+    sold_quantity_kg: batch.soldQuantityKg || 0,
+    sold_quantity: batch.soldQuantityKg || 0,
+    price_per_kg: batch.pricePerKg,
+    harvest_date: batch.harvestDate,
+    status: batch.status,
+    created_at: batch.createdAt,
+    farmer: {
+      full_name: batch.farmerId?.fullName || "Unknown Farmer",
+      phone: batch.farmerId?.phone || "",
+    },
+  });
+
+  const normalizePurchase = (purchase: any) => ({
+    id: purchase._id || purchase.id,
+    quantity_kg: purchase.quantityKg,
+    total_amount: purchase.totalAmount,
+    created_at: purchase.createdAt,
+    batch: {
+      herb_name: purchase.batchId?.herbName,
+      batch_number: purchase.batchId?.batchNumber,
+      harvest_date: purchase.batchId?.harvestDate,
+    },
+    farmer: {
+      full_name: purchase.farmerId?.fullName,
+    },
+  });
+
   useEffect(() => {
     fetchData();
-    
-    // Set up real-time subscription for batch and purchase changes
-    const subscription = supabase
-      .channel('company_dashboard_updates')
-      .on('postgres_changes', 
-        { event: 'UPDATE', schema: 'public', table: 'batches' },
-        (payload) => {
-          console.log('Batch update received:', payload);
-          fetchData(); // Refresh data when batch updates
-        }
-      )
-      .on('postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'purchases' },
-        (payload) => {
-          console.log('New purchase made:', payload);
-          fetchData(); // Refresh data when new purchase is made
-        }
-      )
-      .subscribe();
-
-    return () => {
-      subscription.unsubscribe();
-    };
   }, []);
 
   const fetchData = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
+      const currentUser = authAPI.getUser();
+      if (!currentUser) {
         navigate("/auth");
         return;
       }
 
-      // Fetch available batches (show all for viewing, but only ready_for_sale can be purchased)
-      const { data: batchesData, error: batchError } = await supabase
-        .from("batches")
-        .select(`
-          *,
-          farmer:profiles!batches_farmer_id_fkey(full_name, phone)
-        `)
-        .in("status", ["pending_approval", "approved", "in_process", "quality_check", "packaging", "ready_for_sale", "shipped", "unavailable"])
-        .order("created_at", { ascending: false });
+      const [batchesResult, companyResult, purchasesResult] = await Promise.all([
+        batchesAPI.getAll(),
+        profilesAPI.getCompanyProfile(),
+        purchasesAPI.getAll(),
+      ]);
 
-      if (batchError) {
-        console.error('Error fetching batches:', batchError);
+      if (!batchesResult.success) {
+        throw new Error(batchesResult.message || "Failed to fetch batches");
       }
-      console.log('Available batches:', batchesData);
 
-      setAvailableBatches(batchesData || []);
-      setFilteredBatches(batchesData || []);
+      if (!purchasesResult.success) {
+        throw new Error(purchasesResult.message || "Failed to fetch purchases");
+      }
 
-      // Fetch company details
-      const { data: companyData } = await supabase
-        .from("company_details")
-        .select("*")
-        .eq("user_id", user.id)
-        .single();
+      const normalizedBatches = (batchesResult.data || []).map(normalizeBatch);
+      const normalizedPurchases = (purchasesResult.data || []).map(normalizePurchase);
 
-      setCompanyDetails(companyData);
+      setAvailableBatches(normalizedBatches);
+      setFilteredBatches(normalizedBatches);
+      setMyPurchases(normalizedPurchases);
 
-      // Fetch my purchases
-      const { data: purchasesData } = await supabase
-        .from("purchases")
-        .select(`
-          *,
-          batch:batches(herb_name, batch_number, harvest_date),
-          farmer:profiles!purchases_farmer_id_fkey(full_name)
-        `)
-        .eq("company_id", user.id)
-        .order("created_at", { ascending: false });
-
-      setMyPurchases(purchasesData || []);
+      if (companyResult.success && companyResult.data) {
+        setCompanyDetails({
+          company_name: companyResult.data.companyName,
+          company_address: companyResult.data.companyAddress,
+          gst_number: companyResult.data.gstNumber,
+        });
+      } else {
+        setCompanyDetails(null);
+      }
     } catch (error: any) {
-      toast.error("Failed to load data");
+      toast.error(error.message || "Failed to load data");
     } finally {
       setLoading(false);
     }
@@ -218,93 +227,27 @@ const CompanyDashboard = () => {
     }
 
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Not authenticated");
-
-      const totalAmount = quantity * (selectedBatch.price_per_kg || 0);
-      const farmerAmount = totalAmount * 0.8;
-      const platformAmount = totalAmount * 0.2;
-
-      console.log('Making purchase:', {
-        batch_id: selectedBatch.id,
-        quantity_kg: quantity,
-        current_available: availableQty
+      const result = await purchasesAPI.create({
+        batchId: selectedBatch.id,
+        quantityKg: quantity,
       });
-      
-      const { error } = await supabase.from("purchases").insert({
-        batch_id: selectedBatch.id,
-        company_id: user.id,
-        farmer_id: selectedBatch.farmer_id,
-        quantity_kg: quantity,
-        total_amount: totalAmount,
-        farmer_amount: farmerAmount,
-        platform_amount: platformAmount,
-        payment_status: "completed",
-      });
-      
-      console.log('Purchase insert result:', { error });
 
-      if (error) throw error;
-
-      // Manually update inventory (in case trigger doesn't work)
-      const newAvailableQty = availableQty - quantity;
-      const currentSoldQty = selectedBatch.sold_quantity_kg !== null ? selectedBatch.sold_quantity_kg : 0;
-      const newSoldQty = currentSoldQty + quantity;
-      const newStatus = newAvailableQty <= 0 ? "unavailable" : "ready_for_sale";
-      
-      console.log('Updating inventory manually:', {
-        batch_id: selectedBatch.id,
-        old_available: availableQty,
-        new_available: newAvailableQty,
-        new_status: newStatus
-      });
-      
-      // Simple update - just change status for now
-      const { error: updateError } = await supabase
-        .from("batches")
-        .update({ 
-          status: newStatus
-        })
-        .eq("id", selectedBatch.id);
-        
-      console.log('Status update result:', { error: updateError });
-        
-      if (updateError) {
-        console.error('Status update failed:', updateError);
-      } else {
-        console.log('Status update successful');
+      if (!result.success) {
+        throw new Error(result.message || "Failed to complete purchase");
       }
 
       toast.success("Purchase successful!");
       setPurchaseDialogOpen(false);
       setPurchaseQuantity("");
       setSelectedBatch(null);
-      
-      // Wait a moment for database to update
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      // Force refresh data to show updated quantities
       await fetchData();
-      
-      // Also refresh the specific batch data
-      const { data: updatedBatch } = await supabase
-        .from('batches')
-        .select('*')
-        .eq('id', selectedBatch.id)
-        .single();
-      
-      if (updatedBatch) {
-        console.log('Updated batch after purchase:', updatedBatch);
-        console.log('Available quantity after purchase:', updatedBatch.available_quantity_kg);
-        console.log('Sold quantity after purchase:', updatedBatch.sold_quantity_kg);
-      }
     } catch (error: any) {
       toast.error(error.message || "Failed to complete purchase");
     }
   };
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
+    authAPI.logout();
     navigate("/");
   };
 
@@ -410,7 +353,6 @@ const CompanyDashboard = () => {
                       <CardTitle className="text-lg">{batch.herb_name}</CardTitle>
                       <Badge variant={
                         batch.status === 'ready_for_sale' ? 'default' : 
-                        batch.status === 'unavailable' ? 'destructive' :
                         batch.status === 'sold' ? 'secondary' : 'outline'
                       }>
                         {batch.status.replace(/_/g, " ").toUpperCase()}

@@ -1,351 +1,504 @@
-# AyurChain - Blockchain-Based Ayurvedic Herb Supply Chain Management
+# AyurChain 🌿
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Node.js](https://img.shields.io/badge/Node.js-18+-green.svg)](https://nodejs.org/)
-[![React](https://img.shields.io/badge/React-18+-blue.svg)](https://reactjs.org/)
-[![MongoDB](https://img.shields.io/badge/MongoDB-6+-green.svg)](https://mongodb.com/)
+![AyurChain Logo](https://img.shields.io/badge/AyurChain-Blockchain%20Traceability-green?style=for-the-badge)
+![React](https://img.shields.io/badge/React-18-blue?style=flat-square)
+![Node.js](https://img.shields.io/badge/Node.js-Express-green?style=flat-square)
+![MongoDB](https://img.shields.io/badge/MongoDB-Database-green?style=flat-square)
+![License](https://img.shields.io/badge/License-MIT-yellow?style=flat-square)
 
-> **Revolutionizing Ayurvedic herb supply chain through blockchain traceability and AI-powered quality analysis**
+> Complete Traceability for Ayurvedic Herbs from Farm to Consumer using Blockchain Technology
 
-## 🎯 Project Overview
+AyurChain is a comprehensive supply chain traceability platform for Ayurvedic herbs, providing complete transparency from farm to consumer using blockchain-powered immutable records.
 
-AyurChain is a comprehensive MERN stack platform that creates transparency and trust in the Ayurvedic herb supply chain. It connects farmers directly with companies while ensuring product authenticity for consumers through QR-based traceability and AI-powered quality analysis.
+---
 
-### Key Problems Solved
-- **Farmer Exploitation**: Direct sales with 80% revenue share (vs 30-40% with middlemen)
-- **Product Authenticity**: QR-based verification system
-- **Supply Chain Opacity**: Complete farm-to-consumer traceability
-- **Quality Assurance**: AI-powered quality and fraud detection
+## 📋 Table of Contents
 
-## 🚀 Quick Start
+- [🌟 Features](#🌟-features)
+- [🛠️ Tech Stack](#🛠️-tech-stack)
+- [🏗️ Architecture](#🏗️-architecture)
+- [🚀 Getting Started](#🚀-getting-started)
+- [📱 Application Screenshots](#📱-application-screenshots)
+- [📁 Project Structure](#📁-project-structure)
+- [🔐 User Roles](#🔐-user-roles)
+- [📊 API Endpoints](#📊-api-endpoints)
+- [🤝 Contributing](#🤝-contributing)
+- [📄 License](#📄-license)
+
+---
+
+## 🌟 Features
+
+### Multi-Stakeholder Platform
+- **Farmers**: Create and manage herb batches with complete traceability
+- **Admins**: Approve farmers and verify batch quality
+- **Companies**: Purchase verified herbs with transparent pricing
+- **Consumers**: Verify product authenticity and view complete journey
+
+### Complete Traceability
+- **Batch Creation**: Record harvest details, farming conditions, and quality metrics
+- **Status Tracking**: Real-time status updates with timeline progression
+- **Document Management**: Land proof, certifications, and purity reports
+- **Blockchain Records**: Immutable transaction records
+
+### 🔔 Real-time Notifications
+- **Instant Alerts**: Farmers receive notifications when companies purchase their batches
+- **Detailed Purchase History**: Complete sales history with buyer information
+- **Earnings Tracking**: Clear breakdown of farmer earnings (80%) and platform fees (20%)
+
+### 🌙 Dark Mode & Enhanced UX
+- **Dark Mode Toggle**: System-aware theme switching with manual override
+- **PDF Export**: Generate detailed sales history reports
+- **Advanced Search & Filters**: Powerful filtering by status, date, quantity
+
+### 📱 QR Code System
+- **QR Code Generation**: Automatic QR code creation for each batch
+- **Download & Print**: Export QR codes as PNG files or print labels
+- **QR Scanner**: Built-in camera scanner for batch verification
+- **Mobile Verification**: Scan QR codes to instantly verify batch authenticity
+
+### 🗺️ Location & Mapping
+- **Farm Location Maps**: Interactive maps showing exact farm locations
+- **Address Verification**: Complete farm address display with map integration
+- **External Map Links**: Direct links to Google Maps and OpenStreetMap
+
+---
+
+## 🛠️ Tech Stack
+
+### Frontend
+| Technology | Purpose |
+|------------|---------|
+| React 18 | UI Framework |
+| TypeScript | Type Safety |
+| Vite | Build Tool |
+| Tailwind CSS | Styling |
+| shadcn/ui | Component Library |
+| React Router v6 | Routing |
+| React Query | Data Fetching |
+| Socket.io Client | Real-time Updates |
+
+### Backend
+| Technology | Purpose |
+|------------|---------|
+| Node.js | Runtime |
+| Express.js | Web Framework |
+| MongoDB | Database |
+| Mongoose | ODM |
+| JWT | Authentication |
+| Socket.io | Real-time Communication |
+| QRCode | QR Generation |
+
+### Development Tools
+| Technology | Purpose |
+|------------|---------|
+| Docker | Containerization |
+| ESLint | Code Linting |
+| TypeScript | Type Checking |
+
+---
+
+## 🏗️ Architecture
+
+```
++-------------------------------------------------------------+
+|                        AYURCHAIN                            |
++-------------------------------------------------------------+
+|                                                             |
+|   +-----------------+     +-----------------+             |
+|   |   FRONTEND      |     |    BACKEND      |             |
+|   |   (React/Vite)  |<--->|  (Node/Express) |             |
+|   +--------+--------+     +--------+--------+             |
+|            |                        |                       |
+|            |              +---------+---------+            |
+|            |              |                   |            |
+|            |              v                   v            |
+|            |     +--------------+  +--------------+       |
+|            |     |   MongoDB    |  |  Socket.io   |       |
+|            |     |  (Database)  |  |  (Real-time) |       |
+|            |     +--------------+  +--------------+       |
+|            |                                                |
+|            v                                                |
+|   +---------------------------------------+                |
+|   |          USER ROLES                   |                |
+|   |  Farmer  Admin  Company  Consumer     |                |
+|   +---------------------------------------+                |
+|                                                             |
++-------------------------------------------------------------+
+```
+
+### Data Flow
+1. **Farmer** creates batch -> **Backend** stores in MongoDB -> **QR Code** generated
+2. **Admin** verifies batch -> **Status updated** -> **Notification** sent
+3. **Company** purchases batch -> **Payment split** (80/20) -> **Farmer notified**
+4. **Consumer** scans QR -> **Complete traceability** displayed
+
+---
+
+## 🚀 Getting Started
 
 ### Prerequisites
-- Node.js (v18+)
-- MongoDB (local or Atlas)
-- npm or yarn
+
+| Requirement | Version |
+|-------------|---------|
+| Node.js | 18+ |
+| MongoDB | 6.0+ |
+| npm | 9.0+ |
 
 ### Installation
 
 1. **Clone the repository**
-   ```bash
-   git clone https://github.com/shivam-dewangan/Ayur.git
-   cd Ayur
-   ```
+```bash
+git clone https://github.com/shivam-dewangan/AyurChain.git
+cd AyurChain
+```
 
-2. **Start MongoDB**
-   ```bash
-   # macOS with Homebrew
-   brew services start mongodb/brew/mongodb-community
-   
-   # Or manually
-   mongod --config /usr/local/etc/mongod.conf
-   ```
-
-3. **Quick Start (Both servers)**
-   ```bash
-   ./run.sh
-   ```
-   This starts both backend (port 5000) and frontend (port 5173)
-
-### Manual Setup
-
-**Backend:**
+2. **Backend Setup**
 ```bash
 cd backend
+cp .env.example .env
+# Edit .env with your configuration
+
+# Install dependencies
 npm install
-cp .env.example .env  # Configure your environment
+
+# Start MongoDB (macOS)
+brew services start mongodb/brew/mongodb-community
+
+# Run backend
 npm run dev
 ```
 
-**Frontend:**
+3. **Frontend Setup**
 ```bash
 cd frontend
+cp .env.example .env
+# Edit .env with your configuration
+
+# Install dependencies
 npm install
+
+# Run frontend
 npm run dev
 ```
 
-## 🏗️ Architecture
+### Environment Variables
 
-### Technology Stack
-- **Frontend**: React 18 + TypeScript + Vite + Tailwind CSS + shadcn/ui
-- **Backend**: Node.js + Express + MongoDB + Socket.io
-- **Authentication**: JWT with role-based access control
-- **Real-time**: WebSocket notifications
-- **AI**: Quality analysis and fraud detection
+#### Backend (.env)
+```env
+PORT=5000
+NODE_ENV=development
+MONGODB_URI=mongodb://localhost:27017/ayurchain
+JWT_SECRET=your-secret-key
+FRONTEND_URL=http://localhost:5173
+```
 
-### Project Structure
+#### Frontend (.env)
+```env
+VITE_API_URL=http://localhost:5000/api
+VITE_WS_URL=http://localhost:5000
+```
+
+### Running with Docker
+
+```bash
+# Using run.sh script
+./run.sh
+
+# Manual Docker commands
+docker-compose up -d
+```
+
+### Access the Application
+
+| Service | URL |
+|---------|-----|
+| Frontend | http://localhost:5173 |
+| Backend API | http://localhost:5000 |
+| Health Check | http://localhost:5000/api/health |
+
+---
+
+## 📱 Application Screenshots
+
+### Screenshot 1: Landing Page
+![Landing Page](./docs/screenshots/ss1-landing-page.png)
+
+The landing page showcases AyurChain's mission to provide complete traceability for Ayurvedic herbs. It includes:
+- Hero section with blockchain transparency message
+- Feature highlights (Farm Registration, Quality Verification, Blockchain Records, QR Tracking)
+- "How It Works" section explaining the workflow
+- Call-to-action buttons for Get Started, Verify Product, and Search Batch
+
+---
+
+### Screenshot 2: Authentication Page
+![Authentication Page](./docs/screenshots/ss2-auth-page.png)
+
+Secure authentication system with:
+- Login/Signup toggle
+- Role selection (Farmer, Company, Admin)
+- Form validation
+- Error handling
+
+---
+
+### Screenshot 3: Farmer Dashboard
+![Farmer Dashboard](./docs/screenshots/ss3-farmer-dashboard.png)
+
+Comprehensive farmer dashboard featuring:
+- My Batches tab with status tracking (Pending -> Approved -> Ready for Sale -> Sold)
+- Sales History with detailed buyer information
+- Real-time notification bell with purchase alerts
+- Batch timeline showing progress
+- QR code generation for each batch
+
+---
+
+### Screenshot 4: Company Dashboard
+![Company Dashboard](./docs/screenshots/ss4-company-dashboard.png)
+
+Company marketplace with:
+- Browse approved herb batches
+- Advanced search and filters
+- Batch details modal with farmer information
+- Farm location map integration
+- Purchase functionality with payment breakdown
+
+---
+
+### Screenshot 5: Verification Page
+![Verification Page](./docs/screenshots/ss5-verification-page.png)
+
+Consumer verification system:
+- QR code scanner with camera access
+- Batch verification results
+- Complete traceability journey
+- Farmer profile and batch history
+- Quality metrics and authenticity confirmation
+
+---
+
+## 📁 Project Structure
+
 ```
 AyurChain/
-├── backend/                 # Node.js + Express API
-│   ├── models/             # MongoDB schemas
-│   ├── routes/             # API endpoints
-│   ├── middleware/         # Auth & validation
-│   ├── services/           # Business logic
-│   └── server.js           # Main server
-├── frontend/               # React application
+├── backend/                    # Node.js + Express API
+│   ├── config/                 # Configuration files
+│   │   ├── db.js              # MongoDB connection
+│   │   └── index.js           # Environment config
+│   ├── middleware/            # Express middleware
+│   │   ├── auth.js           # JWT authentication
+│   │   └── role.js           # Role-based access
+│   ├── models/               # Mongoose models
+│   │   ├── User.js           # User schema
+│   │   ├── Batch.js          # Batch schema
+│   │   ├── Purchase.js       # Purchase schema
+│   │   ├── FarmerDetail.js   # Farmer profile
+│   │   ├── CompanyDetail.js  # Company profile
+│   │   ├── Notification.js   # Notification schema
+│   │   ├── AIAnalysis.js    # AI quality analysis
+│   │   └── FraudDetection.js # Fraud detection
+│   ├── routes/               # API routes
+│   │   ├── auth.js          # Authentication
+│   │   ├── batches.js       # Batch management
+│   │   ├── purchases.js     # Purchase handling
+│   │   ├── profiles.js      # Profile management
+│   │   ├── admin.js         # Admin operations
+│   │   └── ai.js            # AI features
+│   ├── services/            # Business logic
+│   │   ├── inventoryService.js
+│   │   └── qrService.js
+│   ├── package.json
+│   └── server.js            # Express server
+│
+├── frontend/                  # React + Vite Application
+│   ├── public/              # Static assets
 │   ├── src/
-│   │   ├── components/     # Reusable UI components
-│   │   ├── pages/          # Route components
 │   │   ├── api/            # API client
-│   │   └── services/       # Frontend services
-│   └── public/
-├── run.sh                  # Start both servers
-└── README.md
+│   │   ├── components/     # React components
+│   │   │   ├── ui/         # shadcn/ui components
+│   │   │   ├── BatchDetailsModal.tsx
+│   │   │   ├── BatchQRCode.tsx
+│   │   │   ├── BatchTimeline.tsx
+│   │   │   ├── FarmLocationMap.tsx
+│   │   │   ├── NotificationBell.tsx
+│   │   │   ├── QRScanner.tsx
+│   │   │   └── ThemeToggle.tsx
+│   │   ├── contexts/       # React contexts
+│   │   ├── hooks/          # Custom hooks
+│   │   ├── lib/            # Utilities
+│   │   ├── pages/          # Page components
+│   │   │   ├── Landing.tsx
+│   │   │   ├── Auth.tsx
+│   │   │   ├── FarmerDashboard.tsx
+│   │   │   ├── CompanyDashboard.tsx
+│   │   │   ├── AdminDashboard.tsx
+│   │   │   ├── CreateBatch.tsx
+│   │   │   ├── BatchSearch.tsx
+│   │   │   └── Verify.tsx
+│   │   ├── services/       # Frontend services
+│   │   ├── App.tsx         # Main app component
+│   │   └── main.tsx        # Entry point
+│   ├── package.json
+│   ├── vite.config.ts
+│   └── tailwind.config.ts
+│
+├── docs/                     # Documentation
+│   └── screenshots/         # Application screenshots
+│
+├── run.sh                   # Application launcher
+├── start.sh                 # Startup script
+├── docker-compose.yml       # Docker configuration
+└── README.md               # This file
 ```
 
-## 👥 User Roles & Features
+---
 
-### 🌱 Farmers
-- **Profile Management**: Complete KYC with admin approval
-- **Batch Creation**: Herb details, harvest info, quality metrics
-- **Earnings Tracking**: 80% revenue share with transparent breakdown
-- **Real-time Notifications**: Instant purchase alerts
-- **QR Code Generation**: Automatic batch verification codes
+## 🔐 User Roles
 
-### 👨💼 Admins
-- **Farmer Verification**: Approve/reject registrations
-- **Quality Control**: Batch approval and monitoring
-- **Platform Management**: System health and user activities
-- **Fraud Detection**: AI-powered anomaly detection
+### 👨‍🌾 Farmer
+- Register with KYC and land proof
+- Create and manage herb batches
+- View sales history and earnings
+- Receive real-time purchase notifications
 
-### 🏢 Companies
-- **Marketplace Access**: Browse verified herb batches
-- **Purchase System**: Direct procurement with transparent pricing
-- **Traceability**: Complete supply chain visibility
-- **Batch Timeline**: Track herb journey from farm to delivery
+### 👨‍💼 Admin
+- Verify farmer registrations
+- Approve/reject batch quality
+- Manage platform users
+- View analytics dashboard
 
-### 👤 Consumers
-- **QR Verification**: Scan products to verify authenticity
-- **Complete Journey**: View farm details, farmer info, quality metrics
-- **Trust Building**: Access to complete supply chain data
+### 🏢 Company
+- Browse approved herb batches
+- Purchase herbs with transparent pricing
+- View complete batch history
+- Access farm location information
 
-## 🔧 Core Features
+### 👤 Consumer
+- Scan QR codes for verification
+- View complete product journey
+- Verify authenticity
+- Access farmer profile information
 
-### Traceability System
-- **Unique Batch IDs**: Auto-generated (BATCH-YYYYMMDD-XXX)
-- **QR Code System**: Generation, scanning, verification
-- **Mobile Scanning**: Camera-based QR verification
-- **Complete Journey**: Farm location, harvest details, quality metrics
-
-### Real-time Notifications
-- **WebSocket Integration**: Instant platform-wide communication
-- **Purchase Alerts**: Immediate farmer notifications
-- **Status Updates**: Real-time batch lifecycle tracking
-- **Cross-device Sync**: Notifications across all devices
-
-### AI-Powered Analysis
-- **Quality Assessment**: Color, texture, size analysis
-- **Fraud Detection**: Image similarity and metadata verification
-- **Price Prediction**: AI-based market pricing
-- **Defect Detection**: Automated quality control
-
-### Advanced UI/UX
-- **Dark/Light Mode**: System-aware theme switching
-- **Responsive Design**: Mobile-first approach
-- **Search & Filters**: Advanced filtering capabilities
-- **PDF Reports**: Automated sales documentation
+---
 
 ## 📊 API Endpoints
 
 ### Authentication
-```
-POST /api/auth/register     # User registration
-POST /api/auth/login        # User login
-GET  /api/auth/me          # Get current user
-POST /api/auth/logout      # User logout
-```
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/auth/register` | Register new user |
+| POST | `/api/auth/login` | User login |
+| GET | `/api/auth/me` | Get current user |
 
 ### Batches
-```
-GET    /api/batches        # Get all batches
-POST   /api/batches        # Create new batch
-GET    /api/batches/:id    # Get batch details
-PUT    /api/batches/:id    # Update batch
-DELETE /api/batches/:id    # Delete batch
-```
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/batches` | Get all batches |
+| POST | `/api/batches` | Create new batch |
+| GET | `/api/batches/:id` | Get batch by ID |
+| PUT | `/api/batches/:id` | Update batch |
+| DELETE | `/api/batches/:id` | Delete batch |
 
 ### Purchases
-```
-GET  /api/purchases        # Get purchases
-POST /api/purchases        # Create purchase
-GET  /api/purchases/:id    # Get purchase details
-```
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/purchases` | Get user purchases |
+| POST | `/api/purchases` | Create purchase |
 
 ### Profiles
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/profiles/farmer` | Get farmer profile |
+| PUT | `/api/profiles/farmer` | Update farmer profile |
+| GET | `/api/profiles/company` | Get company profile |
+| PUT | `/api/profiles/company` | Update company profile |
+
+### Admin
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/admin/farmers` | List all farmers |
+| PUT | `/api/admin/farmers/:id/verify` | Verify farmer |
+| GET | `/api/admin/batches/pending` | Get pending batches |
+| PUT | `/api/admin/batches/:id/approve` | Approve batch |
+
+### AI
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/ai/analyze` | Analyze batch quality |
+
+---
+
+## 📈 Workflow
+
 ```
-GET  /api/profiles/farmer    # Get farmer profile
-POST /api/profiles/farmer    # Create/update farmer profile
-GET  /api/profiles/company   # Get company profile
-POST /api/profiles/company   # Create/update company profile
-```
-
-### AI Analysis
-```
-POST /api/ai/analyze       # Analyze batch quality
-GET  /api/ai/analysis/:id  # Get analysis results
-```
-
-## 🔐 Environment Variables
-
-### Backend (.env)
-```env
-NODE_ENV=development
-PORT=5000
-MONGODB_URI=mongodb://localhost:27017/ayurchain
-JWT_SECRET=your_jwt_secret_key_here
-CLIENT_URL=http://localhost:5173
-```
-
-### Frontend (.env)
-```env
-VITE_API_URL=http://localhost:5000/api
-```
-
-## 💰 Business Model
-
-### Revenue Streams
-- **Transaction Fees**: 20% platform fee
-- **Premium Features**: Advanced analytics
-- **Verification Services**: Third-party authentication
-- **API Access**: External integrations
-
-### Financial Distribution
-- **Farmers**: 80% of transaction value
-- **Platform**: 20% for operations and growth
-
-## 📈 Market Opportunity
-
-- **Global Market**: $8.2B (2022) → $18.6B (2030)
-- **Growth Rate**: 15.8% CAGR
-- **Target Users**: 2.5M+ farmers, 8,000+ manufacturers
-- **Geographic Focus**: India → Southeast Asia → Global
-
-## 🛠️ Development
-
-### Running Tests
-```bash
-# Backend tests
-cd backend
-npm test
-
-# Frontend tests
-cd frontend
-npm test
++-----------------+     +-----------------+     +-----------------+
+|   FARMER        |     |     ADMIN       |     |    COMPANY      |
+|   REGISTRATION  |---->|   VERIFICATION  |---->|    PURCHASE     |
++-----------------+     +-----------------+     +-----------------+
+        |                       |                       |
+        v                       v                       v
++-----------------+     +-----------------+     +-----------------+
+|  Create Batch  |---->|  Quality Check  |---->|  View Batches   |
+|  with Details   |     |  & Approval     |     |  & Purchase     |
++-----------------+     +-----------------+     +-----------------+
+                                                        |
+                                                        v
+                                         +-------------------------+
+                                         |   PAYMENT SPLIT         |
+                                         |   80% Farmer            |
+                                         |   20% Platform          |
+                                         +-------------------------+
+                                                        |
+                                                        v
+                                         +-------------------------+
+                                         |   CONSUMER VERIFICATION |
+                                         |   Scan QR -> View Journey|
+                                         +-------------------------+
 ```
 
-### Building for Production
-```bash
-# Backend
-cd backend
-npm run build
-
-# Frontend
-cd frontend
-npm run build
-```
-
-### Docker Setup
-```bash
-# Build and run with Docker Compose
-docker-compose up --build
-```
-
-## 🚨 Troubleshooting
-
-### Common Issues
-
-**MongoDB Connection**
-```bash
-# Check MongoDB status
-brew services list | grep mongodb
-
-# Restart MongoDB
-brew services restart mongodb/brew/mongodb-community
-```
-
-**Port Conflicts**
-```bash
-# Kill processes on ports
-lsof -ti:5000 | xargs kill -9  # Backend
-lsof -ti:5173 | xargs kill -9  # Frontend
-```
-
-**Dependencies**
-```bash
-# Clean install
-rm -rf node_modules package-lock.json
-npm install
-```
-
-## 📊 Performance Metrics
-
-### Current Status
-- **500+ Farmers**: Registered and verified
-- **2,000+ Batches**: Tracked through system
-- **50+ Companies**: Onboarded for purchasing
-- **$250K**: Transaction volume processed
-- **99.9%**: Platform uptime
-
-### Growth Targets
-- **Year 1**: 1,000 farmers, $500K revenue
-- **Year 2**: 5,000 farmers, $2M revenue
-- **Year 3**: 25,000 farmers, $10M revenue
-
-## 🔮 Future Roadmap
-
-### Phase 1 (Q1 2024)
-- [ ] Mobile app development
-- [ ] Advanced AI models
-- [ ] Blockchain integration
-
-### Phase 2 (Q2 2024)
-- [ ] IoT sensor integration
-- [ ] International expansion
-- [ ] Enterprise partnerships
-
-### Phase 3 (Q3 2024)
-- [ ] Multi-crop support
-- [ ] Supply chain optimization
-- [ ] Predictive analytics
+---
 
 ## 🤝 Contributing
 
-1. Create feature branch (`git checkout -b feature/AmazingFeature`)
-2. Commit changes (`git commit -m 'Add AmazingFeature'`)
-3. Push to branch (`git push origin feature/AmazingFeature`)
-4. Create Pull Request
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
-### Development Guidelines
-- Follow TypeScript best practices
-- Write comprehensive tests
-- Update documentation
-- Follow conventional commits
+---
 
 ## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 👨‍💻 Team
-
-- **Lead Developer**: [Your Name]
-- **Backend Developer**: [Team Member]
-- **Frontend Developer**: [Team Member]
-- **AI/ML Engineer**: [Team Member]
-
-## 📞 Contact & Support
-
-- **Email**: support@ayurchain.com
-- **Documentation**: Available in project files
+---
 
 ## 🙏 Acknowledgments
 
-- Ayurvedic farmers and practitioners
-- Open source community
-- Technology partners
-- Early adopters and testers
+- [React](https://react.dev/)
+- [Node.js](https://nodejs.org/)
+- [MongoDB](https://www.mongodb.com/)
+- [Tailwind CSS](https://tailwindcss.com/)
+- [shadcn/ui](https://ui.shadcn.com/)
 
 ---
 
-**Made with ❤️ for the Ayurvedic community**
+## 📞 Support
 
-*Empowering farmers, ensuring authenticity, building trust*
+For support and questions:
+- Email: support@ayurchain.com
+- GitHub Issues: [Open an issue](https://github.com/shivam-dewangan/AyurChain/issues)
+
+---
+
+<div align="center">
+
+**Built with ❤️ for transparent Ayurvedic supply chain**
+
+*AyurChain v1.0.0*
+
+</div>
+

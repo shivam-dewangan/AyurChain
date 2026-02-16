@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { MapPin, Phone, Calendar, Package, Leaf, User, FileText, Shield, QrCode, Download, Printer, Copy, ExternalLink } from "lucide-react";
-import { authAPI } from "@/api/client";
+import { profilesAPI } from "@/api/client";
 import { toast } from "sonner";
 import { qrService } from "@/services/qrService";
 import FarmLocationMap from "@/components/FarmLocationMap";
@@ -34,23 +34,18 @@ const BatchDetailsModal = ({ batch, open, onOpenChange, hideContactInfo = false 
     
     setLoading(true);
     try {
-      // Get farmer profile
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', batch.farmer_id)
-        .single();
-
-      // Get farmer details
-      const { data: farmerDetails } = await supabase
-        .from('farmer_details')
-        .select('*')
-        .eq('user_id', batch.farmer_id)
-        .single();
-
-      // Combine the data like in verify page
-      if (profile) {
-        setFarmerDetails({ ...profile, ...(farmerDetails || {}) });
+      const result = await profilesAPI.getFarmerProfile(batch.farmer_id);
+      if (result.success && result.data) {
+        setFarmerDetails({
+          full_name: result.data.userId?.fullName || "Unknown Farmer",
+          phone: result.data.userId?.phone || "",
+          farm_name: result.data.farmName,
+          farm_location: result.data.farmLocation,
+          farm_size: result.data.farmSize,
+          certifications: result.data.certifications || [],
+          primary_crop: result.data.primaryCrop,
+          approval_status: "approved",
+        });
       } else {
         setFarmerDetails(null);
       }
@@ -67,8 +62,12 @@ const BatchDetailsModal = ({ batch, open, onOpenChange, hideContactInfo = false 
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'ready_for_sale': return 'default';
-      case 'sold': case 'unavailable': return 'destructive';
+      case 'sold': return 'destructive';
       case 'approved': return 'secondary';
+      case 'harvested':
+      case 'processing':
+      case 'cleaning':
+      case 'drying': return 'secondary';
       default: return 'outline';
     }
   };
@@ -257,7 +256,7 @@ const BatchDetailsModal = ({ batch, open, onOpenChange, hideContactInfo = false 
                         <p className="text-sm text-muted-foreground">Certifications</p>
                         <div className="flex flex-wrap gap-1 mt-1">
                           {farmerDetails.certifications.map((cert: string, index: number) => (
-                            <Badge key={index} variant="outline" className="text-xs">
+                            <Badge key={`cert-${index}`} variant="outline" className="text-xs">
                               <Shield className="h-3 w-3 mr-1" />
                               {cert}
                             </Badge>
@@ -271,7 +270,7 @@ const BatchDetailsModal = ({ batch, open, onOpenChange, hideContactInfo = false 
                         <p className="text-sm text-muted-foreground">Farming Practices</p>
                         <div className="flex flex-wrap gap-1 mt-1">
                           {farmerDetails.farming_practices.map((practice: string, index: number) => (
-                            <Badge key={index} variant="outline" className="text-xs">
+                            <Badge key={`practice-${index}`} variant="outline" className="text-xs">
                               {practice}
                             </Badge>
                           ))}

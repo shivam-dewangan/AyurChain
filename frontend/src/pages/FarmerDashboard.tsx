@@ -5,11 +5,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { authAPI, batchesAPI, purchasesAPI, profilesAPI } from "@/api/client";
 import { toast } from "sonner";
-import { Leaf, Plus, LogOut, Package, CheckCircle, Clock, AlertCircle, Edit, MoreVertical, Eye, Trash2, Copy, History, Brain } from "lucide-react";
+import { Leaf, Plus, LogOut, Package, CheckCircle, Clock, AlertCircle, Edit, MoreVertical, Eye, Trash2, Copy, History, Brain, Scissors, Sparkles, Sun } from "lucide-react";
 import NotificationBell from "@/components/NotificationBell";
 import PurchasesList from "@/components/PurchasesList";
 import AIQualityAnalysis from "@/components/AIQualityAnalysis";
@@ -33,6 +33,19 @@ const FarmerDashboard = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [filters, setFilters] = useState<FilterState>({});
 
+  const normalizeBatch = (batch: any) => ({
+    id: batch._id || batch.id,
+    batch_number: batch.batchNumber || batch.batch_number,
+    herb_name: batch.herbName || batch.herb_name,
+    quantity_kg: batch.quantityKg || batch.quantity_kg,
+    available_quantity_kg: batch.availableQuantityKg ?? batch.available_quantity_kg ?? batch.quantityKg ?? batch.quantity_kg,
+    sold_quantity_kg: batch.soldQuantityKg ?? batch.sold_quantity_kg ?? 0,
+    harvest_date: batch.harvestDate || batch.harvest_date,
+    price_per_kg: batch.pricePerKg || batch.price_per_kg,
+    status: batch.status,
+    images: batch.images || [],
+  });
+
   useEffect(() => {
     fetchData();
   }, []);
@@ -55,8 +68,9 @@ const FarmerDashboard = () => {
       // Fetch batches
       const batchesResult = await batchesAPI.getAll();
       if (batchesResult.success) {
-        setBatches(batchesResult.data);
-        setFilteredBatches(batchesResult.data);
+        const normalizedBatches = (batchesResult.data || []).map(normalizeBatch);
+        setBatches(normalizedBatches);
+        setFilteredBatches(normalizedBatches);
       }
     } catch (error: any) {
       toast.error("Failed to load data");
@@ -112,20 +126,70 @@ const FarmerDashboard = () => {
 
   const getAllStatuses = () => {
     return [
-      'pending_approval', 'approved', 'in_process', 'quality_check',
-      'packaging', 'ready_for_sale', 'unavailable', 'shipped', 'delivered', 'sold'
+      'pending_approval',
+      'approved_by_admin', 
+      'approved',
+      'harvested',
+      'processing',
+      'cleaning',
+      'drying',
+      'ready_for_sale',
+      'sold',
+      'packaging',
+      'shipped',
+      'delivered'
     ];
   };
 
+  const getNextStatus = (currentStatus: string) => {
+    const statuses = getAllStatuses();
+    const currentIndex = statuses.indexOf(currentStatus);
+    if (currentIndex === -1 || currentIndex === statuses.length - 1) {
+      return null; // No next status available
+    }
+    return statuses[currentIndex + 1];
+  };
+
+  const getStatusLabel = (status: string | undefined | null) => {
+    if (!status) return 'Unknown Status';
+    const labels: Record<string, string> = {
+      pending_approval: 'Batch Created',
+      approved_by_admin: 'Approved by Admin',
+      approved: 'Approved',
+      harvested: 'Harvested',
+      processing: 'Processing',
+      cleaning: 'Cleaning',
+      drying: 'Drying',
+      ready_for_sale: 'Ready to Sell',
+      sold: 'Sold',
+      packaging: 'Packaging',
+      shipped: 'Shipped',
+      delivered: 'Delivered'
+    };
+    return labels[status] || status.replace(/_/g, ' ');
+  };
+
   const handleStatusUpdate = async () => {
-    if (!selectedBatch || !newStatus) return;
+    if (!selectedBatch || !newStatus) {
+      toast.error('Invalid batch selected');
+      return;
+    }
+    
+    // Validate batch ID
+    const batchId = selectedBatch.id || selectedBatch._id;
+    if (!batchId) {
+      toast.error('Invalid batch ID');
+      return;
+    }
 
     try {
-      const result = await batchesAPI.updateStatus(selectedBatch.id, newStatus);
+      const result = await batchesAPI.updateStatus(batchId, newStatus);
       if (result.success) {
         toast.success('Status updated successfully!');
         setStatusDialogOpen(false);
         fetchData();
+      } else {
+        toast.error(result.message || 'Failed to update status');
       }
     } catch (error: any) {
       toast.error('Failed to update status');
@@ -133,6 +197,10 @@ const FarmerDashboard = () => {
   };
 
   const handleDeleteBatch = async (batchId: string) => {
+    if (!batchId || batchId === 'undefined' || batchId === 'null') {
+      toast.error('Invalid batch ID');
+      return;
+    }
     if (!confirm('Are you sure you want to delete this batch?')) return;
 
     try {
@@ -140,6 +208,8 @@ const FarmerDashboard = () => {
       if (result.success) {
         toast.success('Batch deleted successfully!');
         fetchData();
+      } else {
+        toast.error(result.message || 'Failed to delete batch');
       }
     } catch (error: any) {
       toast.error('Failed to delete batch');
@@ -152,10 +222,16 @@ const FarmerDashboard = () => {
   };
 
   const fetchBatchTimeline = async (batchId: string) => {
+    if (!batchId || batchId === 'undefined' || batchId === 'null') {
+      toast.error('Invalid batch ID');
+      return;
+    }
     try {
       const result = await batchesAPI.getTimeline(batchId);
       if (result.success) {
         setBatchTimeline(result.data);
+      } else {
+        toast.error(result.message || 'Failed to load timeline');
       }
     } catch (error: any) {
       toast.error('Failed to load timeline');
@@ -164,16 +240,18 @@ const FarmerDashboard = () => {
 
   const getStatusBadge = (status: string) => {
     const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline"; icon: any }> = {
-      pending_approval: { label: "Pending", variant: "outline", icon: Clock },
+      pending_approval: { label: "Batch Created", variant: "outline", icon: Clock },
+      approved_by_admin: { label: "Approved by Admin", variant: "outline", icon: CheckCircle },
       approved: { label: "Approved", variant: "outline", icon: CheckCircle },
-      in_process: { label: "In Process", variant: "secondary", icon: Clock },
-      quality_check: { label: "Quality Check", variant: "secondary", icon: AlertCircle },
-      packaging: { label: "Packaging", variant: "secondary", icon: Package },
-      ready_for_sale: { label: "Ready for Sale", variant: "default", icon: Package },
-      unavailable: { label: "Unavailable", variant: "destructive", icon: AlertCircle },
-      shipped: { label: "Shipped", variant: "default", icon: CheckCircle },
-      delivered: { label: "Delivered", variant: "default", icon: CheckCircle },
+      harvested: { label: "Harvested", variant: "secondary", icon: Package },
+      processing: { label: "Processing", variant: "secondary", icon: Scissors },
+      cleaning: { label: "Cleaning", variant: "secondary", icon: Sparkles },
+      drying: { label: "Drying", variant: "secondary", icon: Sun },
+      ready_for_sale: { label: "Ready to Sell", variant: "default", icon: Package },
       sold: { label: "Sold", variant: "secondary", icon: CheckCircle },
+      packaging: { label: "Packaging", variant: "secondary", icon: Package },
+      shipped: { label: "Shipped", variant: "secondary", icon: Package },
+      delivered: { label: "Delivered", variant: "default", icon: CheckCircle },
     };
 
     const config = statusConfig[status] || statusConfig.pending_approval;
@@ -234,7 +312,7 @@ const FarmerDashboard = () => {
               </Button>
             </CardContent>
           </Card>
-        ) : farmerDetails.approval_status === "pending" ? (
+        ) : farmerDetails.approvalStatus === "pending" ? (
           <Card className="mb-8 border-warning bg-warning/5">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -246,7 +324,7 @@ const FarmerDashboard = () => {
               </CardDescription>
             </CardHeader>
           </Card>
-        ) : farmerDetails.approval_status === "rejected" ? (
+        ) : farmerDetails.approvalStatus === "rejected" ? (
           <Card className="mb-8 border-destructive bg-destructive/5">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -320,7 +398,7 @@ const FarmerDashboard = () => {
           <TabsContent value="batches" className="space-y-6">
             <div className="flex justify-between items-center">
               <h2 className="text-2xl font-bold">My Batches</h2>
-              {farmerDetails?.approval_status === "approved" && (
+              {farmerDetails?.approvalStatus === "approved" && (
                 <Button onClick={() => navigate("/farmer/create-batch")}>
                   <Plus className="h-4 w-4 mr-2" />
                   Create Batch
@@ -354,42 +432,42 @@ const FarmerDashboard = () => {
             ) : (
               <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {filteredBatches.map((batch) => (
-                  <Card key={batch.id} className="hover:shadow-lg transition-shadow">
+                  <Card key={batch.id || batch._id || batch.batchNumber || batch.batch_number} className="hover:shadow-lg transition-shadow">
                     <CardHeader>
                       <div className="flex justify-between items-start mb-2">
-                        <CardTitle className="text-lg">{batch.herb_name}</CardTitle>
+                        <CardTitle className="text-lg">{batch.herbName || batch.herb_name}</CardTitle>
                         {getStatusBadge(batch.status)}
                       </div>
-                      <CardDescription>Batch: {batch.batch_number}</CardDescription>
+                      <CardDescription>Batch: {batch.batchNumber || batch.batch_number}</CardDescription>
                     </CardHeader>
                     <CardContent>
                       <div className="space-y-2 text-sm">
                         <div className="flex justify-between">
                           <span className="text-muted-foreground">Total Quantity:</span>
-                          <span className="font-medium">{batch.quantity_kg} kg</span>
+                          <span className="font-medium">{batch.quantityKg || batch.quantity_kg} kg</span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-muted-foreground">Available:</span>
                           <span className="font-medium text-green-600">
-                            {batch.available_quantity_kg ?? batch.quantity_kg} kg
+                            {batch.availableQuantityKg ?? batch.available_quantity_kg ?? batch.quantityKg ?? batch.quantity_kg} kg
                           </span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-muted-foreground">Sold:</span>
                           <span className="font-medium text-blue-600">
-                            {batch.sold_quantity_kg ?? 0} kg
+                            {batch.soldQuantityKg ?? batch.sold_quantity_kg ?? 0} kg
                           </span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-muted-foreground">Harvest Date:</span>
                           <span className="font-medium">
-                            {new Date(batch.harvest_date).toLocaleDateString()}
+                            {batch.harvestDate ? new Date(batch.harvestDate).toLocaleDateString() : batch.harvest_date ? new Date(batch.harvest_date).toLocaleDateString() : 'N/A'}
                           </span>
                         </div>
-                        {batch.price_per_kg && (
+                        {(batch.pricePerKg || batch.price_per_kg) && (
                           <div className="flex justify-between">
                             <span className="text-muted-foreground">Price/kg:</span>
-                            <span className="font-medium">₹{batch.price_per_kg}</span>
+                            <span className="font-medium">₹{batch.pricePerKg || batch.price_per_kg}</span>
                           </div>
                         )}
                       </div>
@@ -399,15 +477,15 @@ const FarmerDashboard = () => {
                           variant="outline" 
                           size="sm" 
                           className="flex-1"
-                          onClick={() => navigate(`/farmer/batch/${batch.id}`)}
+                          onClick={() => navigate(`/farmer/batch/${batch.id || batch._id}`)}
                         >
                           <Edit className="h-4 w-4 mr-2" />
                           Edit
                         </Button>
                         
                         <BatchQRCode 
-                          batchNumber={batch.batch_number}
-                          herbName={batch.herb_name}
+                          batchNumber={batch.batchNumber || batch.batch_number}
+                          herbName={batch.herbName || batch.herb_name}
                         />
                         
                         <DropdownMenu>
@@ -425,20 +503,20 @@ const FarmerDashboard = () => {
                               <CheckCircle className="h-4 w-4 mr-2" />
                               Update Status
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => copyBatchNumber(batch.batch_number)}>
+                            <DropdownMenuItem onClick={() => copyBatchNumber(batch.batchNumber || batch.batch_number)}>
                               <Copy className="h-4 w-4 mr-2" />
                               Copy Batch ID
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => {
                               setSelectedBatch(batch);
-                              fetchBatchTimeline(batch.id);
+                              fetchBatchTimeline(batch.id || batch._id);
                               setTimelineDialogOpen(true);
                             }}>
                               <History className="h-4 w-4 mr-2" />
                               View Timeline
                             </DropdownMenuItem>
                             <DropdownMenuItem 
-                              onClick={() => handleDeleteBatch(batch.id)}
+                              onClick={() => handleDeleteBatch(batch.id || batch._id)}
                               className="text-destructive"
                             >
                               <Trash2 className="h-4 w-4 mr-2" />
@@ -503,26 +581,48 @@ const FarmerDashboard = () => {
                   Batch: {selectedBatch?.batch_number}
                 </p>
               </div>
-              <div>
-                <label className="text-sm font-medium">New Status</label>
-                <Select value={newStatus} onValueChange={setNewStatus}>
+              <div className="bg-muted p-4 rounded-lg space-y-3">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-muted-foreground">Current Status:</span>
+                  <Badge variant="outline">{getStatusLabel(selectedBatch?.status)}</Badge>
+                </div>
+              </div>
+              
+              {/* Status Selection Dropdown */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Select New Status:</label>
+                <Select 
+                  value={newStatus} 
+                  onValueChange={(value) => setNewStatus(value)}
+                >
                   <SelectTrigger>
-                    <SelectValue placeholder="Select new status" />
+                    <SelectValue placeholder="Select status" />
                   </SelectTrigger>
                   <SelectContent>
-                    {getAllStatuses().map((status) => (
-                      <SelectItem key={status} value={status}>
-                        {status.replace(/_/g, ' ').toUpperCase()}
-                      </SelectItem>
-                    ))}
+                    <SelectItem value="approved_by_admin">Approved by Admin</SelectItem>
+                    <SelectItem value="approved">Approved</SelectItem>
+                    <SelectItem value="harvested">Harvested</SelectItem>
+                    <SelectItem value="processing">Processing</SelectItem>
+                    <SelectItem value="cleaning">Cleaning</SelectItem>
+                    <SelectItem value="drying">Drying</SelectItem>
+                    <SelectItem value="ready_for_sale">Ready to Sell</SelectItem>
+                    <SelectItem value="sold">Sold</SelectItem>
+                    <SelectItem value="packaging">Packaging</SelectItem>
+                    <SelectItem value="shipped">Shipped</SelectItem>
+                    <SelectItem value="delivered">Delivered</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
+              
               <div className="flex gap-2">
                 <Button variant="outline" onClick={() => setStatusDialogOpen(false)} className="flex-1">
                   Cancel
                 </Button>
-                <Button onClick={handleStatusUpdate} className="flex-1">
+                <Button 
+                  onClick={handleStatusUpdate} 
+                  className="flex-1"
+                  disabled={!newStatus}
+                >
                   Update Status
                 </Button>
               </div>
@@ -551,7 +651,7 @@ const FarmerDashboard = () => {
                   batchTimeline.map((change, index) => {
                     const isLast = index === batchTimeline.length - 1;
                     return (
-                      <div key={change.id} className="relative flex items-start gap-4">
+                      <div key={change._id || change.id || `timeline-${index}`} className="relative flex items-start gap-4">
                         {!isLast && (
                           <div className="absolute left-4 top-8 w-0.5 h-12 bg-border" />
                         )}

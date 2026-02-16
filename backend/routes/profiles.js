@@ -11,6 +11,20 @@ const CompanyDetail = require('../models/CompanyDetail');
 // @access  Private (Farmer only)
 router.post('/farmer', authenticate, requireRole('farmer'), async (req, res) => {
   try {
+    console.log('=== Farmer Profile Request ===');
+    console.log('User from token:', req.user);
+    console.log('User role:', req.user?.role);
+    console.log('Request body:', JSON.stringify(req.body, null, 2));
+
+    // Check if user exists
+    if (!req.user || !req.user.id) {
+      console.error('No user found in request');
+      return res.status(401).json({
+        success: false,
+        message: 'User not authenticated'
+      });
+    }
+
     const {
       farmName,
       farmLocation,
@@ -37,13 +51,50 @@ router.post('/farmer', authenticate, requireRole('farmer'), async (req, res) => 
       emailAddress
     } = req.body;
 
+    // Validate required fields
+    if (!farmName || !farmName.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Farm name is required'
+      });
+    }
+
+    if (!farmLocation || !farmLocation.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Farm location is required'
+      });
+    }
+
+    if (!farmSize) {
+      return res.status(400).json({
+        success: false,
+        message: 'Farm size is required'
+      });
+    }
+
     // Update user phone if provided
     if (phoneNumber) {
-      await User.findByIdAndUpdate(req.user.id, { phone: phoneNumber });
+      try {
+        await User.findByIdAndUpdate(req.user.id, { phone: phoneNumber });
+      } catch (err) {
+        console.error('Error updating user phone:', err);
+      }
     }
 
     // Check if farmer profile exists
-    let farmerDetail = await FarmerDetail.findOne({ userId: req.user.id });
+    let farmerDetail;
+    try {
+      farmerDetail = await FarmerDetail.findOne({ userId: req.user.id });
+    } catch (err) {
+      console.error('Error finding farmer detail:', err);
+      return res.status(500).json({
+        success: false,
+        message: 'Database error while finding farmer profile',
+        error: err.message
+      });
+    }
+    console.log('Existing farmer detail:', farmerDetail);
 
     const profileData = {
       userId: req.user.id,
@@ -88,11 +139,29 @@ router.post('/farmer', authenticate, requireRole('farmer'), async (req, res) => 
       data: farmerDetail
     });
   } catch (error) {
-    console.error('Farmer profile error:', error);
-    res.status(500).json({
+    console.error('=== Farmer Profile Error ===');
+    console.error('Error name:', error.name);
+    console.error('Error message:', error.message);
+    console.error('Error stack:', error.stack);
+    
+    // Determine the appropriate error message
+    let errorMessage = 'Error saving farmer profile';
+    let statusCode = 500;
+    
+    if (error.name === 'ValidationError') {
+      errorMessage = `Validation error: ${Object.values(error.errors || {}).map(e => e.message).join(', ')}`;
+      statusCode = 400;
+    } else if (error.name === 'CastError') {
+      errorMessage = 'Invalid data format';
+      statusCode = 400;
+    } else if (error.message) {
+      errorMessage = error.message;
+    }
+    
+    res.status(statusCode).json({
       success: false,
-      message: 'Error saving farmer profile',
-      error: error.message
+      message: errorMessage,
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 });
@@ -199,7 +268,18 @@ router.get('/company', authenticate, requireRole('company'), async (req, res) =>
 // @access  Private
 router.get('/farmer/:id', authenticate, async (req, res) => {
   try {
-    const farmerDetail = await FarmerDetail.findOne({ userId: req.params.id })
+    // Validate and extract farmer ID - handle case where it might be an object
+    let farmerId = req.params.id;
+    
+    // If the ID looks like "[object Object]", return not found
+    if (farmerId === '[object Object]' || !farmerId) {
+      return res.status(404).json({
+        success: false,
+        message: 'Farmer profile not found'
+      });
+    }
+    
+    const farmerDetail = await FarmerDetail.findOne({ userId: farmerId })
       .populate('userId', 'fullName phone email');
 
     if (!farmerDetail) {

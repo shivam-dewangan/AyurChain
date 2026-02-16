@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
 
 class APIClient {
   constructor() {
@@ -110,7 +110,62 @@ class APIClient {
 
   async createBatch(batchData) {
     try {
+      console.log('API createBatch called with:', batchData);
       const response = await this.api.post('/batches', batchData);
+      console.log('API createBatch response:', response.data);
+      return { success: true, data: response.data.data || response.data };
+    } catch (error) {
+      console.error('API createBatch error:', error.response?.data || error.message);
+      return { success: false, message: error.response?.data?.message || error.message };
+    }
+  }
+
+  async getBatchById(batchId) {
+    return this.api.get(`/batches/${batchId}`);
+  }
+
+  async getBatchByBatchNumber(batchNumber) {
+    try {
+      const response = await this.api.get(`/batches/batch-number/${batchNumber}`);
+      return { success: true, data: response.data.data || response.data };
+    } catch (error) {
+      return { success: false, message: error.response?.data?.message || error.message };
+    }
+  }
+
+  async updateBatchStatus(batchId, status) {
+    // Validate batch ID
+    if (!batchId || batchId === 'undefined' || batchId === 'null') {
+      return { success: false, message: 'Invalid batch ID' };
+    }
+    try {
+      const response = await this.api.patch(`/batches/${batchId}/status`, { status });
+      return { success: true, data: response.data.data || response.data };
+    } catch (error) {
+      return { success: false, message: error.response?.data?.message || error.message };
+    }
+  }
+
+  async deleteBatch(batchId) {
+    // Validate batch ID
+    if (!batchId || batchId === 'undefined' || batchId === 'null') {
+      return { success: false, message: 'Invalid batch ID' };
+    }
+    try {
+      const response = await this.api.delete(`/batches/${batchId}`);
+      return { success: true, data: response.data.data || response.data };
+    } catch (error) {
+      return { success: false, message: error.response?.data?.message || error.message };
+    }
+  }
+
+  async getBatchTimeline(batchId) {
+    // Validate batch ID
+    if (!batchId || batchId === 'undefined' || batchId === 'null') {
+      return { success: false, message: 'Invalid batch ID' };
+    }
+    try {
+      const response = await this.api.get(`/batches/${batchId}/timeline`);
       return { success: true, data: response.data.data || response.data };
     } catch (error) {
       return { success: false, message: error.response?.data?.message || error.message };
@@ -120,6 +175,52 @@ class APIClient {
   async getFarmerProfile(userId) {
     try {
       const response = await this.api.get(`/profiles/farmer${userId ? `/${userId}` : ''}`);
+      return { success: true, data: response.data.data || response.data };
+    } catch (error) {
+      return { success: false, message: error.response?.data?.message || error.message };
+    }
+  }
+
+  async getCompanyProfile() {
+    try {
+      const response = await this.api.get('/profiles/company');
+      return { success: true, data: response.data.data || response.data };
+    } catch (error) {
+      return { success: false, message: error.response?.data?.message || error.message };
+    }
+  }
+
+  async createFarmerProfile(profileData) {
+    try {
+      console.log('Creating farmer profile with data:', profileData);
+      const response = await this.api.post('/profiles/farmer', profileData);
+      console.log('Farmer profile response:', response.data);
+      
+      if (response.data.success) {
+        return { success: true, data: response.data.data };
+      } else {
+        return { success: false, message: response.data.message || 'Failed to save profile' };
+      }
+    } catch (error) {
+      console.error('Farmer profile error:', error);
+      console.error('Error response:', error.response?.data);
+      const errorMessage = error.response?.data?.message || error.response?.data?.error || error.message;
+      return { success: false, message: errorMessage };
+    }
+  }
+
+  async getPurchases(params = {}) {
+    try {
+      const response = await this.api.get('/purchases', { params });
+      return { success: true, data: response.data.data || response.data };
+    } catch (error) {
+      return { success: false, message: error.response?.data?.message || error.message };
+    }
+  }
+
+  async createPurchase(purchaseData) {
+    try {
+      const response = await this.api.post('/purchases', purchaseData);
       return { success: true, data: response.data.data || response.data };
     } catch (error) {
       return { success: false, message: error.response?.data?.message || error.message };
@@ -141,17 +242,80 @@ export const authAPI = {
 export const batchesAPI = {
   getAll: (params) => apiClient.getBatches(params),
   create: (batchData) => apiClient.createBatch(batchData),
+  getById: (batchId) => apiClient.getBatchById(batchId),
+  getByBatchNumber: (batchNumber) => apiClient.getBatchByBatchNumber(batchNumber),
+  updateStatus: (batchId, status) => apiClient.updateBatchStatus(batchId, status),
+  delete: (batchId) => apiClient.deleteBatch(batchId),
+  getTimeline: (batchId) => apiClient.getBatchTimeline(batchId),
 };
 
 export const profilesAPI = {
   getFarmerProfile: (userId) => apiClient.getFarmerProfile(userId),
+  getCompanyProfile: () => apiClient.getCompanyProfile(),
+  createFarmerProfile: (profileData) => apiClient.createFarmerProfile(profileData),
+};
+
+export const purchasesAPI = {
+  getAll: (params) => apiClient.getPurchases(params),
+  create: (purchaseData) => apiClient.createPurchase(purchaseData),
 };
 
 export const adminAPI = {
-  getDashboard: () => ({ success: true, data: { pendingFarmers: [], pendingBatches: [], purchases: [] } }),
-  approveFarmer: () => ({ success: true }),
-  rejectFarmer: () => ({ success: true }),
-  approveBatch: () => ({ success: true }),
+  getDashboard: async () => {
+    try {
+      const response = await apiClient.api.get('/admin/stats');
+      if (response.data.success) {
+        // Fetch pending farmers and batches separately
+        const [farmersRes, batchesRes] = await Promise.all([
+          apiClient.api.get('/admin/farmers/pending'),
+          apiClient.api.get('/admin/batches/pending')
+        ]);
+        
+        console.log('API Response - pending farmers:', farmersRes.data);
+        console.log('API Response - pending batches:', batchesRes.data);
+        
+        return {
+          success: true,
+          data: {
+            pendingFarmers: farmersRes.data?.data || [],
+            pendingBatches: batchesRes.data?.data || [],
+            purchases: response.data.data?.purchases?.recent || []
+          }
+        };
+      }
+      return { success: false, message: response.data.message };
+    } catch (error) {
+      console.error('Admin dashboard error:', error);
+      return { success: false, message: error.response?.data?.message || error.message };
+    }
+  },
+  approveFarmer: async (farmerId) => {
+    console.log('adminAPI.approveFarmer called with:', farmerId);
+    try {
+      const response = await apiClient.api.patch(`/admin/farmers/${farmerId}/approve`);
+      console.log('approveFarmer response:', response.data);
+      return { success: response.data.success, data: response.data.data };
+    } catch (error) {
+      console.error('Approve farmer error:', error);
+      return { success: false, message: error.response?.data?.message || error.message };
+    }
+  },
+  rejectFarmer: async (farmerId) => {
+    try {
+      const response = await apiClient.api.patch(`/admin/farmers/${farmerId}/reject`);
+      return { success: response.data.success, data: response.data.data };
+    } catch (error) {
+      return { success: false, message: error.response?.data?.message || error.message };
+    }
+  },
+  approveBatch: async (batchId) => {
+    try {
+      const response = await apiClient.api.patch(`/admin/batches/${batchId}/approve`);
+      return { success: response.data.success, data: response.data.data };
+    } catch (error) {
+      return { success: false, message: error.response?.data?.message || error.message };
+    }
+  },
 };
 
 export default apiClient;

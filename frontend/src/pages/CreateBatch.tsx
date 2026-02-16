@@ -49,6 +49,9 @@ const CreateBatch = () => {
 
     setLoading(true);
     try {
+      console.log('Creating batch with user:', user);
+      console.log('Form data:', formData);
+      
       const result = await batchesAPI.create({
         herbName: formData.herbName,
         harvestDate: formData.harvestDate,
@@ -60,6 +63,8 @@ const CreateBatch = () => {
         images: formData.images.length > 0 ? formData.images : undefined
       });
 
+      console.log('Batch creation result:', result);
+
       if (result.success) {
         toast.success('Batch created successfully!');
         navigate('/farmer');
@@ -67,6 +72,7 @@ const CreateBatch = () => {
         throw new Error(result.message || 'Failed to create batch');
       }
     } catch (error: any) {
+      console.error('Create batch error:', error);
       toast.error(error.message || 'Failed to create batch');
     } finally {
       setLoading(false);

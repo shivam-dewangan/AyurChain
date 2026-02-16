@@ -62,16 +62,13 @@ const farmerDetailSchema = new mongoose.Schema({
   
   // Farming Details
   soilType: {
-    type: String,
-    enum: ['clay', 'loam', 'sandy', 'red-laterite', 'black-cotton', 'other']
+    type: String
   },
   waterSource: {
-    type: String,
-    enum: ['borewell', 'canal', 'river', 'rainwater', 'pond', 'other']
+    type: String
   },
   irrigationMethod: {
-    type: String,
-    enum: ['drip', 'sprinkler', 'flood', 'furrow', 'other']
+    type: String
   },
   primaryCrop: {
     type: String
@@ -95,15 +92,7 @@ const farmerDetailSchema = new mongoose.Schema({
   
   // Certifications
   certifications: [{
-    type: String,
-    enum: [
-      'Organic Certification',
-      'Natural Farming',
-      'Biodynamic',
-      'Traditional Methods',
-      'Sustainable Farming',
-      'Integrated Farming'
-    ]
+    type: String
   }],
   
   // Approval Status

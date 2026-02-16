@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { authAPI } from '@/api/client';
+import { authAPI, profilesAPI } from '@/api/client';
 import { toast } from 'sonner';
 import { 
   User, 
@@ -81,7 +81,7 @@ const FarmerProfile = () => {
   }, []);
 
   const checkAuth = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
+    const user = authAPI.getUser();
     if (!user) {
       navigate('/auth');
       return;
@@ -90,7 +90,7 @@ const FarmerProfile = () => {
   };
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
+    authAPI.logout();
     navigate('/');
   };
 
@@ -107,57 +107,73 @@ const FarmerProfile = () => {
   };
 
   const handleSubmit = async () => {
-    if (!user) return;
+    if (!user) {
+      toast.error('User not authenticated');
+      return;
+    }
+
+    // Validate required fields
+    if (!formData.fullName.trim()) {
+      toast.error('Full name is required');
+      return;
+    }
+    if (!formData.farmName.trim()) {
+      toast.error('Farm name is required');
+      return;
+    }
+    if (!formData.farmLocation.trim()) {
+      toast.error('Farm location is required');
+      return;
+    }
+    if (!formData.address.trim()) {
+      toast.error('Complete address is required');
+      return;
+    }
 
     setLoading(true);
     try {
-      // Update profile with phone and name if provided
-      if (formData.fullName || formData.phone) {
-        await supabase
-          .from('profiles')
-          .update({
-            full_name: formData.fullName || user.user_metadata?.full_name,
-            phone: formData.phone
-          })
-          .eq('id', user.id);
+      console.log('Submitting farmer profile...');
+      // Submit farmer profile via backend API
+      const result = await profilesAPI.createFarmerProfile({
+        farmName: formData.farmName.trim(),
+        farmLocation: formData.farmLocation.trim(),
+        farmSize: formData.farmSize ? parseFloat(formData.farmSize) : undefined,
+        soilType: formData.soilType || 'Not Specified',
+        waterSource: formData.waterSource || 'Not Specified',
+        irrigationMethod: formData.irrigation || 'Not Specified',
+        farmingPractices: formData.farmingPractices && formData.farmingPractices.length > 0 ? formData.farmingPractices : ['Traditional'],
+        primaryCrop: formData.primaryCrop || 'Not Specified',
+        annualProduction: formData.annualProduction ? parseFloat(formData.annualProduction) : undefined,
+        cropRotation: formData.cropRotation || 'Not Specified',
+        processingCapabilities: formData.processingCapabilities && formData.processingCapabilities.length > 0 ? formData.processingCapabilities : [],
+        certifications: formData.certifications && formData.certifications.length > 0 ? formData.certifications : [],
+        landProofUrl: formData.landProofUrl?.trim() || undefined,
+        aadhaarUrl: formData.aadhaarUrl?.trim() || undefined,
+        organicCertUrl: formData.organicCertUrl?.trim() || undefined,
+        farmPhotosUrls: formData.farmPhotosUrls && formData.farmPhotosUrls.length > 0 ? formData.farmPhotosUrls : [],
+        gpsLatitude: formData.gpsLatitude ? parseFloat(formData.gpsLatitude) : undefined,
+        gpsLongitude: formData.gpsLongitude ? parseFloat(formData.gpsLongitude) : undefined,
+        farmerAge: formData.age ? parseInt(formData.age) : undefined,
+        farmingExperience: formData.experience ? parseInt(formData.experience) : undefined,
+        completeAddress: formData.address.trim(),
+        phoneNumber: formData.phone?.trim() || '',
+        emailAddress: formData.email?.trim() || ''
+      });
+
+      console.log('Submit result:', result);
+
+      if (!result.success) {
+        throw new Error(result.message || 'Failed to submit profile');
       }
 
-      // Insert farmer details with all form data
-      const { error } = await supabase
-        .from('farmer_details')
-        .insert({
-          user_id: user.id,
-          farm_name: formData.farmName,
-          farm_location: formData.farmLocation,
-          farm_size: formData.farmSize ? parseFloat(formData.farmSize) : null,
-          soil_type: formData.soilType,
-          water_source: formData.waterSource,
-          irrigation_method: formData.irrigation,
-          farming_practices: formData.farmingPractices,
-          primary_crop: formData.primaryCrop,
-          annual_production: formData.annualProduction ? parseFloat(formData.annualProduction) : null,
-          crop_rotation: formData.cropRotation,
-          processing_capabilities: formData.processingCapabilities,
-          certifications: formData.certifications,
-          land_proof_url: formData.landProofUrl || null,
-          aadhaar_url: formData.aadhaarUrl || null,
-          organic_cert_url: formData.organicCertUrl || null,
-          farm_photos_urls: formData.farmPhotosUrls,
-          gps_latitude: formData.gpsLatitude ? parseFloat(formData.gpsLatitude) : null,
-          gps_longitude: formData.gpsLongitude ? parseFloat(formData.gpsLongitude) : null,
-          farmer_age: formData.age ? parseInt(formData.age) : null,
-          farming_experience: formData.experience ? parseInt(formData.experience) : null,
-          complete_address: formData.address,
-          phone_number: formData.phone,
-          email_address: formData.email
-        });
-
-      if (error) throw error;
-
-      toast.success('Profile submitted for approval!');
-      navigate('/farmer');
+      toast.success('✅ Profile submitted for approval! Redirecting...');
+      // Give user time to see the message
+      setTimeout(() => {
+        navigate('/farmer');
+      }, 1500);
     } catch (error: any) {
-      toast.error(error.message || 'Failed to submit profile');
+      console.error('Submit error:', error);
+      toast.error(error.message || 'Failed to submit profile. Please try again.');
     } finally {
       setLoading(false);
     }

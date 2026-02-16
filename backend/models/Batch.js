@@ -3,9 +3,9 @@ const mongoose = require('mongoose');
 const batchSchema = new mongoose.Schema({
   batchNumber: {
     type: String,
-    required: [true, 'Batch number is required'],
     unique: true,
     trim: true
+    // Note: required validation handled in pre-save hook
   },
   farmerId: {
     type: mongoose.Schema.Types.ObjectId,
@@ -67,17 +67,24 @@ const batchSchema = new mongoose.Schema({
     type: String,
     enum: [
       'pending_approval',
+      'approved_by_admin',
       'approved',
-      'in_process',
-      'quality_check',
-      'packaging',
+      'harvested',
+      'processing',
+      'cleaning',
+      'drying',
       'ready_for_sale',
-      'unavailable',
+      'available_for_purchase',
+      'sold',
+      'packaging',
       'shipped',
-      'delivered',
-      'sold'
+      'delivered'
     ],
     default: 'pending_approval'
+  },
+  showOnCompanyDashboard: {
+    type: Boolean,
+    default: false
   }
 }, {
   timestamps: true
@@ -90,7 +97,6 @@ batchSchema.pre('save', async function(next) {
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const day = String(date.getDate()).padStart(2, '0');
-    const random = String(Math.floor(Math.random() * 1000)).padStart(3, '0');
     
     // Find existing batch numbers with same date prefix
     const prefix = `BATCH-${year}${month}${day}`;
@@ -100,6 +106,12 @@ batchSchema.pre('save', async function(next) {
     
     this.batchNumber = `${prefix}-${String(existingCount + 1).padStart(3, '0')}`;
   }
+  
+  // Final validation to ensure batchNumber exists
+  if (!this.batchNumber) {
+    return next(new Error('Batch number is required'));
+  }
+  
   next();
 });
 
