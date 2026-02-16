@@ -222,7 +222,7 @@ docker-compose up -d
 ## 📱 Application Screenshots
 
 ### Screenshot 1: Landing Page
-![Landing Page](./docs/screenshots/ss1-landing-page.png)
+![Landing Page](./frontend/public/ss1-landing-page.png)
 
 The landing page showcases AyurChain's mission to provide complete traceability for Ayurvedic herbs. It includes:
 - Hero section with blockchain transparency message
@@ -233,7 +233,7 @@ The landing page showcases AyurChain's mission to provide complete traceability 
 ---
 
 ### Screenshot 2: Authentication Page
-![Authentication Page](./docs/screenshots/ss2-auth-page.png)
+![Authentication Page](./frontend/public/ss2-auth-page.png)
 
 Secure authentication system with:
 - Login/Signup toggle
@@ -244,7 +244,7 @@ Secure authentication system with:
 ---
 
 ### Screenshot 3: Farmer Dashboard
-![Farmer Dashboard](./docs/screenshots/ss3-farmer-dashboard.png)
+![Farmer Dashboard](./frontend/public/ss3-farmer-dashboard.png)
 
 Comprehensive farmer dashboard featuring:
 - My Batches tab with status tracking (Pending -> Approved -> Ready for Sale -> Sold)
@@ -256,7 +256,7 @@ Comprehensive farmer dashboard featuring:
 ---
 
 ### Screenshot 4: Company Dashboard
-![Company Dashboard](./docs/screenshots/ss4-company-dashboard.png)
+![Company Dashboard](./frontend/public/ss4-company-dashboard.png)
 
 Company marketplace with:
 - Browse approved herb batches
@@ -268,7 +268,11 @@ Company marketplace with:
 ---
 
 ### Screenshot 5: Verification Page
-![Verification Page](./docs/screenshots/ss5-verification-page.png)
+![Verification Page](./frontend/public/ss5-verification-page.png)
+
+
+### Screenshot 6: Admin Page
+![Verification Page](./frontend/public/ss6-admin-page.png)
 
 Consumer verification system:
 - QR code scanner with camera access
