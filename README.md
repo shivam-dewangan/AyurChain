@@ -270,16 +270,17 @@ Company marketplace with:
 ### Screenshot 5: Verification Page
 ![Verification Page](./frontend/public/ss5-verification-page.png)
 
-
-### Screenshot 6: Admin Page
-![Verification Page](./frontend/public/ss6-admin-page.png)
-
 Consumer verification system:
 - QR code scanner with camera access
 - Batch verification results
 - Complete traceability journey
 - Farmer profile and batch history
 - Quality metrics and authenticity confirmation
+
+
+### Screenshot 6: Admin Page
+![Verification Page](./frontend/public/ss6-admin-page.png)
+
 
 ---
 
