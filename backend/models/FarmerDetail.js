@@ -125,7 +125,38 @@ const farmerDetailSchema = new mongoose.Schema({
   farmPhotosUrls: [{
     type: String,
     trim: true
-  }]
+  }],
+
+  // Payout / Payment Details
+  bankAccountHolderName: {
+    type: String,
+    trim: true
+  },
+  bankAccountNumber: {
+    type: String,
+    trim: true
+  },
+  bankName: {
+    type: String,
+    trim: true
+  },
+  bankBranch: {
+    type: String,
+    trim: true
+  },
+  bankIFSCCode: {
+    type: String,
+    trim: true
+  },
+  upiId: {
+    type: String,
+    trim: true
+  },
+  preferredPaymentMethod: {
+    type: String,
+    enum: ['bank_transfer', 'upi', 'none'],
+    default: 'none'
+  }
 }, {
   timestamps: true
 });

@@ -10,22 +10,25 @@ const connectDB = require('./config/db');
 const app = express();
 const server = http.createServer(app);
 
+// Start server - use port 5001 to match frontend expectation
+const PORT = process.env.PORT || 5001;
+
+// Allow all origins for development
+const corsOptions = {
+  origin: '*', // Allow all origins for development
+  credentials: true
+};
+
 // Initialize Socket.io with CORS
 const io = new Server(server, {
-  cors: {
-    origin: config.env.frontendUrl,
-    methods: ['GET', 'POST']
-  }
+  cors: corsOptions
 });
 
 // Connect to MongoDB
 connectDB();
 
 // Middleware
-app.use(cors({
-  origin: config.env.frontendUrl,
-  credentials: true
-}));
+app.use(cors(corsOptions));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -39,6 +42,7 @@ const purchaseRoutes = require('./routes/purchases');
 const profileRoutes = require('./routes/profiles');
 const adminRoutes = require('./routes/admin');
 const aiRoutes = require('./routes/ai');
+const payoutRoutes = require('./routes/payouts');
 
 // API Routes
 app.use('/api/auth', authRoutes);
@@ -47,6 +51,7 @@ app.use('/api/purchases', purchaseRoutes);
 app.use('/api/profiles', profileRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/ai', aiRoutes);
+app.use('/api/payouts', payoutRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
@@ -100,8 +105,6 @@ app.use((req, res) => {
 });
 
 // Start server
-const PORT = process.env.PORT || 8080;
-
 server.listen(PORT, () => {
   console.log(`
 ╔═══════════════════════════════════════════════════════════╗
@@ -116,9 +119,9 @@ server.listen(PORT, () => {
 ║   - Auth:        /api/auth                               ║
 ║   - Batches:     /api/batches                            ║
 ║   - Purchases:   /api/purchases                          ║
-║   - Profiles:     /api/profiles                           ║
-║   - Admin:       /api/admin                               ║
-║   - AI:          /api/ai                                  ║
+║   - Profiles:    /api/profiles                           ║
+║   - Admin:       /api/admin                              ║
+║   - AI:          /api/ai                                 ║
 ║                                                           ║
 ║   WebSocket: Ready for real-time connections              ║
 ║                                                           ║

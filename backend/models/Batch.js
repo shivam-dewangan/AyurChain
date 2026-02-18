@@ -66,26 +66,65 @@ const batchSchema = new mongoose.Schema({
   status: {
     type: String,
     enum: [
-      'pending_approval',
-      'approved_by_admin',
-      'approved',
       'harvested',
       'processing',
       'cleaning',
       'drying',
       'ready_for_sale',
-      'available_for_purchase',
+      'approved_for_sale',
       'sold',
       'packaging',
       'shipped',
       'delivered'
     ],
-    default: 'pending_approval'
+    default: 'harvested'
+  },
+  // Admin approval for sale
+  adminApprovalStatus: {
+    type: String,
+    enum: ['pending', 'approved', 'rejected'],
+    default: null
+  },
+  adminApprovalNotes: {
+    type: String,
+    trim: true
+  },
+  approvedByAdminAt: {
+    type: Date
   },
   showOnCompanyDashboard: {
     type: Boolean,
     default: false
-  }
+  },
+  // Status history with images, GPS, and notes
+  statusHistory: [{
+    status: {
+      type: String,
+      required: true
+    },
+    timestamp: {
+      type: Date,
+      default: Date.now
+    },
+    images: [{
+      type: String,
+      trim: true
+    }],
+    gpsLatitude: {
+      type: Number
+    },
+    gpsLongitude: {
+      type: Number
+    },
+    notes: {
+      type: String,
+      trim: true
+    },
+    labTestReport: {
+      type: String,
+      trim: true
+    }
+  }]
 }, {
   timestamps: true
 });

@@ -24,13 +24,17 @@ router.get('/stats', authenticate, requireRole('admin'), async (req, res) => {
       FarmerDetail.countDocuments(),
       FarmerDetail.countDocuments({ approvalStatus: 'pending' }),
       Batch.countDocuments(),
-      Batch.countDocuments({ status: 'pending_approval' }),
+      // Batches waiting for admin approval (ready_for_sale with pending status)
+      Batch.countDocuments({ 
+        status: 'ready_for_sale',
+        adminApprovalStatus: 'pending'
+      }),
       Purchase.countDocuments(),
       Purchase.find().sort({ createdAt: -1 }).limit(5).populate('batchId', 'herbName')
     ]);
 
     const approvedFarmers = await FarmerDetail.countDocuments({ approvalStatus: 'approved' });
-    const readyBatches = await Batch.countDocuments({ status: 'ready_for_sale' });
+    const readyBatches = await Batch.countDocuments({ status: 'approved_for_sale', adminApprovalStatus: 'approved' });
     const soldBatches = await Batch.countDocuments({ status: 'sold' });
 
     // Calculate total revenue
@@ -157,6 +161,14 @@ router.patch('/farmers/:id/approve', authenticate, requireRole('admin'), async (
       });
     }
 
+    // Check if already approved
+    if (farmer.approvalStatus === 'approved') {
+      return res.status(400).json({
+        success: false,
+        message: 'Farmer is already approved'
+      });
+    }
+
     farmer.approvalStatus = 'approved';
     farmer.approvedAt = new Date();
     farmer.approvedBy = req.user.id;
@@ -238,13 +250,17 @@ router.patch('/farmers/:id/reject', authenticate, requireRole('admin'), async (r
 });
 
 // @route   GET /api/admin/batches/pending
-// @desc    Get all pending batches
+// @desc    Get all batches pending admin approval (ready_for_sale status)
 // @access  Private (Admin only)
 router.get('/batches/pending', authenticate, requireRole('admin'), async (req, res) => {
   try {
-    const batches = await Batch.find({ status: 'pending_approval' })
+    // Get batches that are marked as ready_for_sale and pending admin approval
+    const batches = await Batch.find({ 
+      status: 'ready_for_sale',
+      adminApprovalStatus: 'pending'
+    })
       .populate('farmerId', 'fullName phone')
-      .sort({ createdAt: -1 });
+      .sort({ updatedAt: -1 });
 
     res.json({
       success: true,
@@ -260,8 +276,34 @@ router.get('/batches/pending', authenticate, requireRole('admin'), async (req, r
   }
 });
 
+// @route   GET /api/admin/batches/approved
+// @desc    Get all approved batches (available for company purchase)
+// @access  Private (Admin only)
+router.get('/batches/approved', authenticate, requireRole('admin'), async (req, res) => {
+  try {
+    const batches = await Batch.find({ 
+      status: 'approved_for_sale',
+      adminApprovalStatus: 'approved'
+    })
+      .populate('farmerId', 'fullName phone')
+      .sort({ approvedByAdminAt: -1 });
+
+    res.json({
+      success: true,
+      data: batches
+    });
+  } catch (error) {
+    console.error('Get approved batches error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching batches',
+      error: error.message
+    });
+  }
+});
+
 // @route   PATCH /api/admin/batches/:id/approve
-// @desc    Approve a batch for sale
+// @desc    Approve a batch for sale (after farmer marks it ready_for_sale)
 // @access  Private (Admin only)
 router.patch('/batches/:id/approve', authenticate, requireRole('admin'), async (req, res) => {
   try {
@@ -282,8 +324,20 @@ router.patch('/batches/:id/approve', authenticate, requireRole('admin'), async (
       });
     }
 
-    // Update to approved_by_admin status (sequential flow step 2)
-    batch.status = 'approved_by_admin';
+    // Check if batch is ready for sale
+    if (batch.status !== 'ready_for_sale') {
+      return res.status(400).json({
+        success: false,
+        message: 'Batch is not ready for sale. Farmer must mark it as ready_for_sale first.'
+      });
+    }
+
+    // Update to approved_for_sale status
+    batch.status = 'approved_for_sale';
+    batch.adminApprovalStatus = 'approved';
+    batch.adminApprovalNotes = req.body.notes || 'Approved by admin';
+    batch.approvedByAdminAt = new Date();
+    batch.showOnCompanyDashboard = true;
     batch.qrCodeData = batch.batchNumber;
     await batch.save();
 
@@ -292,16 +346,17 @@ router.patch('/batches/:id/approve', authenticate, requireRole('admin'), async (
     await BatchChange.create({
       batchId: batch._id,
       fieldName: 'status',
-      oldValue: 'pending_approval',
-      newValue: 'approved_by_admin',
-      changedBy: req.user.id
+      oldValue: 'ready_for_sale',
+      newValue: 'approved_for_sale',
+      changedBy: req.user.id,
+      notes: req.body.notes || 'Approved by admin'
     });
 
     // Create notification for farmer
     await Notification.create({
       userId: batch.farmerId,
-      title: 'Batch Approved by Admin!',
-      message: `Your batch ${batch.batchNumber} (${batch.herbName}) has been approved by admin. You can now proceed with harvesting and processing.`,
+      title: 'Batch Approved for Sale! 🎉',
+      message: `Your batch ${batch.batchNumber} (${batch.herbName}) has been approved and is now visible to companies for purchase.`,
       type: 'batch_approved',
       relatedId: batch._id,
       relatedModel: 'Batch'
@@ -322,7 +377,7 @@ router.patch('/batches/:id/approve', authenticate, requireRole('admin'), async (
 });
 
 // @route   PATCH /api/admin/batches/:id/reject
-// @desc    Reject a batch
+// @desc    Reject a batch (send back to farmer for improvements)
 // @access  Private (Admin only)
 router.patch('/batches/:id/reject', authenticate, requireRole('admin'), async (req, res) => {
   try {
@@ -334,7 +389,7 @@ router.patch('/batches/:id/reject', authenticate, requireRole('admin'), async (r
       });
     }
 
-    const { reason } = req.body;
+    const { reason, notes } = req.body;
 
     const batch = await Batch.findById(req.params.id);
 
@@ -345,14 +400,36 @@ router.patch('/batches/:id/reject', authenticate, requireRole('admin'), async (r
       });
     }
 
-    batch.status = 'rejected';
+    // Check if batch is ready for sale
+    if (batch.status !== 'ready_for_sale') {
+      return res.status(400).json({
+        success: false,
+        message: 'Batch is not in ready_for_sale status'
+      });
+    }
+
+    // Set back to drying status with rejection notes
+    batch.status = 'drying';
+    batch.adminApprovalStatus = 'rejected';
+    batch.adminApprovalNotes = notes || reason || 'Needs improvement';
     await batch.save();
+
+    // Record status change
+    const BatchChange = require('../models/BatchChange');
+    await BatchChange.create({
+      batchId: batch._id,
+      fieldName: 'status',
+      oldValue: 'ready_for_sale',
+      newValue: 'drying',
+      changedBy: req.user.id,
+      notes: notes || reason || 'Rejected by admin - needs improvement'
+    });
 
     // Create notification for farmer
     await Notification.create({
       userId: batch.farmerId,
-      title: 'Batch Rejected',
-      message: reason || `Your batch ${batch.batchNumber} has been rejected.`,
+      title: 'Batch Needs Improvement 🔧',
+      message: `Your batch ${batch.batchNumber} needs some improvements: ${notes || reason || 'Please review and update.'}`,
       type: 'batch_rejected',
       relatedId: batch._id,
       relatedModel: 'Batch'

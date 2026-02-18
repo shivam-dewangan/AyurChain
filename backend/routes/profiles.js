@@ -48,7 +48,15 @@ router.post('/farmer', authenticate, requireRole('farmer'), async (req, res) => 
       farmingExperience,
       completeAddress,
       phoneNumber,
-      emailAddress
+      emailAddress,
+      // Payment details
+      preferredPaymentMethod,
+      bankAccountHolderName,
+      bankAccountNumber,
+      bankName,
+      bankBranch,
+      bankIFSCCode,
+      upiId
     } = req.body;
 
     // Validate required fields
@@ -121,7 +129,15 @@ router.post('/farmer', authenticate, requireRole('farmer'), async (req, res) => 
       completeAddress,
       phoneNumber,
       emailAddress,
-      approvalStatus: 'pending'
+      approvalStatus: 'pending',
+      // Payment details
+      preferredPaymentMethod,
+      bankAccountHolderName,
+      bankAccountNumber,
+      bankName,
+      bankBranch,
+      bankIFSCCode,
+      upiId
     };
 
     if (farmerDetail) {

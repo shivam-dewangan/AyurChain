@@ -17,7 +17,7 @@ const checkAvailability = async (batchId, requestedQuantity) => {
       ? batch.availableQuantityKg
       : batch.quantityKg;
 
-    if (batch.status !== 'ready_for_sale') {
+    if (batch.status !== 'ready_for_sale' && batch.status !== 'approved_for_sale') {
       return {
         available: false,
         availableQuantity: availableQty,

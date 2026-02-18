@@ -36,7 +36,7 @@ router.post('/', authenticate, requireRole('company'), async (req, res) => {
       ? batch.availableQuantityKg 
       : batch.quantityKg;
 
-    if (batch.status !== 'ready_for_sale') {
+    if (batch.status !== 'ready_for_sale' && batch.status !== 'approved_for_sale') {
       return res.status(400).json({
         success: false,
         message: 'Batch is not available for sale'
@@ -117,9 +117,14 @@ router.post('/', authenticate, requireRole('company'), async (req, res) => {
 // @access  Private
 router.get('/', authenticate, async (req, res) => {
   try {
-    const { page = 1, limit = 20 } = req.query;
+    const { page = 1, limit = 20, batchId } = req.query;
     
     const query = {};
+
+    // Filter by batchId if provided - return all purchases for this batch
+    if (batchId) {
+      query.batchId = batchId;
+    }
 
     // Filter based on role
     if (req.user.role === 'farmer') {
@@ -134,7 +139,7 @@ router.get('/', authenticate, async (req, res) => {
 
     const purchases = await Purchase.find(query)
       .populate('batchId', 'herbName batchNumber harvestDate')
-      .populate('companyId', 'fullName phone')
+      .populate('companyId', 'fullName phone email')
       .populate('farmerId', 'fullName phone')
       .sort({ createdAt: -1 })
       .skip(skip)
@@ -154,6 +159,40 @@ router.get('/', authenticate, async (req, res) => {
     });
   } catch (error) {
     console.error('Get purchases error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching purchases',
+      error: error.message
+    });
+  }
+});
+
+// @route   GET /api/purchases/batch/:batchId
+// @desc    Get purchases for a specific batch (public endpoint for verification)
+// @access  Public
+router.get('/batch/:batchId', async (req, res) => {
+  try {
+    const { batchId } = req.params;
+
+    // Validate batchId format
+    if (!batchId || batchId === 'undefined' || batchId === 'null') {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid batch ID'
+      });
+    }
+
+    const purchases = await Purchase.find({ batchId })
+      .populate('companyId', 'fullName phone email companyName')
+      .populate('farmerId', 'fullName phone')
+      .sort({ createdAt: -1 });
+
+    res.json({
+      success: true,
+      data: purchases
+    });
+  } catch (error) {
+    console.error('Get batch purchases error:', error);
     res.status(500).json({
       success: false,
       message: 'Error fetching purchases',
